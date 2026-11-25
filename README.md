@@ -2,9 +2,20 @@
 
 <img src="BatteryMonitor-logo.png" alt="Battery Monitor logo" width="80">
 
-A Windows 11 utility that displays the battery level of supported wireless peripherals directly on the taskbar.
+A free, open-source Windows 11 utility that displays the battery level of supported wireless peripherals directly on the taskbar.
 
-**[Download the latest release](https://github.com/kross873/battery-monitor-releases/releases/latest)** · [All releases](https://github.com/kross873/battery-monitor-releases/releases)
+[![Download for Windows 11](https://img.shields.io/badge/Download-Windows%2011-0078D4?style=for-the-badge)](https://github.com/kross873/battery-monitor-releases/releases/latest)
+
+[All releases](https://github.com/kross873/battery-monitor-releases/releases) · [Report device compatibility](https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml) · [License](LICENSE)
+
+## What's new in 0.12.0
+
+- Fluent-inspired sidebar and redesigned device battery cards.
+- Refreshed light and dark palettes.
+- Dedicated compatibility section and appearance controls.
+- Existing standalone and optional Windhawk modes, with signed update verification.
+
+Battery support varies by device and connection. Community testing is welcome.
 
 ## Features
 
