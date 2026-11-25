@@ -1,4 +1,4 @@
-Battery Monitor v0.12.0 — Design Update (test build)
+Battery Monitor v0.12.0 — Design Update
 
 - New Fluent-inspired sidebar and device battery cards.
 - Updated light and dark palettes.
