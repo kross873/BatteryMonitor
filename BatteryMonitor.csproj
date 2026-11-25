@@ -15,5 +15,8 @@
   <ItemGroup>
     <Compile Remove="ReleaseTools/**/*.cs" />
     <EmbeddedResource Include="update-config.json" LogicalName="BatteryMonitor.UpdateConfig.json" />
+    <None Update="LICENSE" CopyToPublishDirectory="PreserveNewest" TargetPath="BatteryMonitor-licenses/GPL-3.0.txt" />
+    <None Update="docs/THIRD-PARTY.md" CopyToPublishDirectory="PreserveNewest" TargetPath="BatteryMonitor-licenses/THIRD-PARTY.md" />
+    <None Update="docs/TASKBAR-MEDIA-WIDGET-MIT.txt" CopyToPublishDirectory="PreserveNewest" TargetPath="BatteryMonitor-licenses/TASKBAR-MEDIA-WIDGET-MIT.txt" />
   </ItemGroup>
 </Project>
