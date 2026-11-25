@@ -1,0 +1,11 @@
+﻿Battery Monitor 0.10.4 — режим Windhawk
+
+1. Если Windhawk отсутствует, установите его с https://windhawk.net/ самостоятельно.
+2. Если уже установлен наш мод 0.4.0 (battery-monitor-native-fork), просто включите его; пересборка не нужна.
+3. Если мод старый: откройте редактор существующего мода и замените код содержимым battery-monitor-native-0.4.0-multi-device.wh.cpp из этой папки.
+4. Если мода ещё нет: в Windhawk создайте локальный мод и замените весь код содержимым приложенного файла. Скомпилируйте мод и включите его.
+5. Запустите Battery Monitor. В меню «Устройства в виджете» выберите устройства. Оформление доступно в настройках.
+
+Не создавайте два мода с одинаковым ID. Установщик не изменяет настройки Windhawk и не устанавливает его автоматически. При переходе на самостоятельный режим отключите наш мод в Windhawk; при удалении Battery Monitor удалите или отключите его самостоятельно.
+
+English: install Windhawk separately if needed. Enable the existing 0.4.0 mod or paste the included source into its editor (create a local mod only if none exists), compile, then start Battery Monitor. Disable the mod if switching to standalone. Never disable security software.
