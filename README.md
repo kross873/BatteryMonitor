@@ -43,6 +43,12 @@ Requires Windows x64, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dot
 
 The checked-in `update-config.json` is intentionally unconfigured. A local build works without automatic updates. Official release builds use the publisher's own configuration and signing key. See [publisher notes](docs/DEVELOPMENT-RU.md) for the existing release workflow. Do not generate a replacement key for an already published update channel.
 
+## Device compatibility reports
+
+Help expand the list of supported peripherals: select **Report device compatibility** in the app's Devices & general tab or [open the public GitHub report form](https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml). A GitHub account is required to submit a report. Nothing is uploaded by the application. Report successful tests as well as failures; review and redact any optional diagnostics before posting.
+
+See the [community compatibility list](docs/COMPATIBILITY.md). Untested models are not claimed as supported.
+
 ## Reporting issues
 
 Include the application version, Windows version, peripheral model, connection type (USB receiver or Bluetooth), and expected and observed behavior. Remove personal details, local account paths, device serial numbers and secrets from any diagnostic output before sharing.

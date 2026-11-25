@@ -5,3 +5,4 @@ Battery Monitor v0.11.2
 - Added an experimental Windows device-node battery percentage fallback.
 - Added battery value validation tests and corrected the diagnostic version label.
 - Proprietary receivers still require a verified protocol; Logitech G435 USB battery remains unavailable.
+- Added a device compatibility report button and a public GitHub issue form, with no automatic diagnostics upload.

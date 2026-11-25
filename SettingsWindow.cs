@@ -1,5 +1,6 @@
 using static BatteryMonitor.UiPreferences;
 using System.Drawing.Drawing2D;
+using System.Diagnostics;
 
 namespace BatteryMonitor;
 
@@ -142,7 +143,22 @@ internal sealed class SettingsWindow : Form
         _refresh.Click += async (_, _) => await refresh();
         var report = MakeButton(T("Сохранить диагностику"), 220);
         report.Click += (_, _) => diagnostics();
-        actions.Controls.Add(_refresh); actions.Controls.Add(report); layout.Controls.Add(actions, 0, 2);
+        var compatibility = MakeButton(T("Сообщить о совместимости"), 270);
+        compatibility.Click += (_, _) =>
+        {
+            if (MessageBox.Show(this, T("Открыть публичную форму GitHub? Данные не отправляются автоматически. Не публикуйте личные данные и непроверенные файлы диагностики."), "Battery Monitor", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
+                return;
+            try
+            {
+                // Fixed public issue form; no device IDs, logs or personal data in the URL.
+                using var browser = Process.Start(new ProcessStartInfo("https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml") { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, T("Не удалось открыть форму GitHub.") + "\n" + ex.Message, "Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        };
+        actions.Controls.Add(_refresh); actions.Controls.Add(report); actions.Controls.Add(compatibility); layout.Controls.Add(actions, 0, 2);
 
         var group = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(16, 10, 16, 10), Margin = Padding.Empty };
         var options = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6, BackColor = Surface };
