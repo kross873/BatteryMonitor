@@ -52,4 +52,6 @@ Never commit private signing keys, credentials or personal diagnostics. Signed u
 
 ## License and acknowledgements
 
-License selection and third-party provenance review are pending. This is a private source-review snapshot, not yet an open-source-licensed release. See [third-party references](docs/THIRD-PARTY.md).
+Battery Monitor's original source code is licensed under the [GNU General Public License v3.0 only](LICENSE). Third-party components retain their own terms. See [third-party acknowledgements and licenses](docs/THIRD-PARTY.md).
+
+The matching source and applicable notices must accompany official binary releases. The release repository and this source repository are maintained separately.
