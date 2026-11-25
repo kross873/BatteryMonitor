@@ -47,6 +47,13 @@ internal sealed record UiPreferences(string Language, string Theme)
     private static readonly Dictionary<string, (string Uk, string En)> Translations = new()
     {
         ["Обновления"] = ("Оновлення", "Updates"),
+        ["Совместимость"] = ("Сумісність", "Compatibility"),
+        ["Помогите расширить поддержку устройств"] = ("Допоможіть розширити підтримку пристроїв", "Help expand device support"),
+        ["Укажите модель устройства и работает ли отображение заряда. Отчёты публичные, данные автоматически не отправляются."] = ("Вкажіть модель пристрою та чи працює відображення заряду. Звіти публічні, дані автоматично не надсилаються.", "Report your device model and whether battery readings work. Reports are public; no data is sent automatically."),
+        ["Список совместимости"] = ("Список сумісності", "Compatibility list"),
+        ["Обнаружение USB-приёмника не гарантирует получение заряда."] = ("Виявлення USB-приймача не гарантує отримання заряду.", "Detecting a USB receiver does not guarantee battery readings."),
+        ["Обнаружено устройств:"] = ("Виявлено пристроїв:", "Detected devices:"),
+        ["Заряд доступен:"] = ("Заряд доступний:", "Battery available:"),
         ["Открыть релизы GitHub"] = ("Відкрити релізи GitHub", "Open GitHub releases"),
         ["Что нового"] = ("Що нового", "What's new"),
         ["Нет доступного обновления."] = ("Немає доступного оновлення.", "No update available."),

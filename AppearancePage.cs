@@ -46,6 +46,7 @@ internal sealed class AppearancePage : UserControl
         Add(T("Размер текста"), _font); Add(T("Размер иконки"), _iconSize); Add(T("Жирность"), _weight); Add(T("Отступ"), _gap);
         _preview = new Label { Text = T("Пример: 87%"), Dock = DockStyle.Top, Height = 44, BackColor = Color.FromArgb(37, 37, 37), ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter };
         outer.Controls.Add(_preview);
+        outer.Controls.SetChildIndex(_preview, 3);
         var reset = SettingsWindow.MakeButton(T("Сбросить оформление"), 230);
         reset.Click += (_, _) => { _style.SelectedIndex = 0; _icon.SelectedIndex = 0; _color.SelectedIndex = 0; _weight.SelectedIndex = 0; _font.SelectedIndex = 0; _iconSize.SelectedIndex = 0; _hex.Text = "#66CCFF"; _gap.Value = 5; UpdatePreview(); };
         outer.Controls.Add(reset);

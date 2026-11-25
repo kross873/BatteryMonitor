@@ -6,7 +6,9 @@ namespace BatteryMonitor;
 
 internal sealed class SettingsWindow : Form
 {
-    private readonly DataGridView _devices;
+    private readonly FlowLayoutPanel _devices;
+    private readonly Label _compatibilitySummary;
+    private string _cardSignature = "";
     private readonly AppearancePage _appearance;
     private readonly Label _status, _saveStatus;
     private readonly ComboBox _interval, _theme, _language;
@@ -22,14 +24,15 @@ internal sealed class SettingsWindow : Form
     private Icon? _windowIcon;
     internal static Color Ink => Dark ? Color.FromArgb(233, 238, 247) : Color.FromArgb(20, 32, 53);
     internal static Color Muted => Dark ? Color.FromArgb(165, 177, 196) : Color.FromArgb(82, 96, 118);
-    private static readonly Color Blue = Color.FromArgb(0, 92, 207);
-    internal static Color Canvas => Dark ? Color.FromArgb(25, 29, 36) : Color.FromArgb(240, 244, 251);
-    internal static Color Surface => Dark ? Color.FromArgb(35, 41, 51) : Color.White;
+    private static Color Blue => Dark ? Color.FromArgb(117, 182, 255) : Color.FromArgb(23, 106, 196);
+    private static Color Sidebar => Dark ? Color.FromArgb(27, 31, 38) : Color.FromArgb(229, 235, 242);
+    internal static Color Canvas => Dark ? Color.FromArgb(20, 23, 28) : Color.FromArgb(241, 244, 248);
+    internal static Color Surface => Dark ? Color.FromArgb(34, 39, 47) : Color.White;
     private static Color HeaderFill => Dark ? Color.FromArgb(44, 52, 64) : Color.FromArgb(232, 238, 248);
-    private static Color SelectedFill => Dark ? Color.FromArgb(48, 66, 90) : Color.FromArgb(229, 239, 255);
-    private static Color Good => Dark ? Color.FromArgb(104, 221, 151) : Color.FromArgb(25, 123, 71);
+    private static Color SelectedFill => Dark ? Color.FromArgb(41, 63, 88) : Color.FromArgb(215, 232, 252);
+    private static Color Good => Dark ? Color.FromArgb(114, 215, 170) : Color.FromArgb(17, 116, 79);
     private static Color Low => Dark ? Color.FromArgb(255, 132, 121) : Color.FromArgb(180, 55, 42);
-    private static Color Line => Dark ? Color.FromArgb(62, 72, 88) : Color.FromArgb(216, 225, 239);
+    private static Color Line => Dark ? Color.FromArgb(52, 59, 70) : Color.FromArgb(206, 215, 226);
 
     public SettingsWindow(MonitorSettings settings, bool startup,
         Action<MonitorSettings, bool> apply, Func<Task> refresh, Action diagnostics, Action<string, UpdateRelease> installUpdate)
@@ -44,121 +47,99 @@ internal sealed class SettingsWindow : Form
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Font;
         Font = new Font("Segoe UI", 10f);
-        ClientSize = new Size(900, 780);
-        MinimumSize = new Size(780, 735);
+        ClientSize = new Size(1000, 760);
+        MinimumSize = new Size(900, 690);
         BackColor = Canvas;
         ForeColor = Ink;
-        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 12), ColumnCount = 1, RowCount = 3, BackColor = Canvas };
+        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, BackColor = Canvas, Margin = Padding.Empty };
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218));
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
         Controls.Add(shell);
-        var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
-        var devicesTab = MakeButton(T("Устройства и общие"), 210);
-        var appearanceTab = MakeButton(T("Оформление"), 160);
-        var updatesTab = MakeButton(T("Обновления"), 160);
-        nav.Controls.Add(devicesTab); nav.Controls.Add(appearanceTab); nav.Controls.Add(updatesTab);
-        shell.Controls.Add(nav, 0, 0);
-        var pages = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = Canvas };
-        shell.Controls.Add(pages, 0, 1);
+        var sidebar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Sidebar, Padding = new Padding(14), Margin = Padding.Empty };
+        sidebar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
+        sidebar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        shell.Controls.Add(sidebar, 0, 0); shell.SetRowSpan(sidebar, 2);
+        var brand = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, BackColor = Sidebar };
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45)); brand.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var logo = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 12, 5, 30) };
+        logo.Paint += (_, e) => DrawLogo(e.Graphics, logo.ClientRectangle);
+        brand.Controls.Add(logo, 0, 0);
+        brand.Controls.Add(new Label { Text = "Battery Monitor", Font = _section, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0,0,0,18) }, 1, 0);
+        sidebar.Controls.Add(brand, 0, 0);
+        var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = Padding.Empty, BackColor = Sidebar };
+        var devicesTab = MakeButton(T("Устройства"), 184);
+        var appearanceTab = MakeButton(T("Оформление"), 184);
+        var updatesTab = MakeButton(T("Обновления"), 184);
+        var compatibilityTab = MakeButton(T("Совместимость"), 184);
+        foreach (var b in new[] { devicesTab, appearanceTab, updatesTab, compatibilityTab }) { b.Height = 44; b.TextAlign = ContentAlignment.MiddleLeft; b.Padding = new Padding(12,0,0,0); nav.Controls.Add(b); }
+        sidebar.Controls.Add(nav, 0, 1);
+        sidebar.Controls.Add(new Label { Text = "v" + UpdateClient.CurrentVersion + "\nby kross873", Font = _small, ForeColor = Muted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(7,0,0,4) }, 0, 2);
+        var pages = new Panel { Dock = DockStyle.Fill, Margin = new Padding(24,18,24,0), BackColor = Canvas };
+        shell.Controls.Add(pages, 1, 0);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Canvas, Margin = Padding.Empty };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 222));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 208));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         pages.Controls.Add(layout);
         _appearance = new AppearancePage { Visible = false };
         pages.Controls.Add(_appearance);
         var updates = new UpdatePage(installUpdate) { Visible = false };
         pages.Controls.Add(updates);
+        var compatibility = new Panel { Dock = DockStyle.Fill, BackColor = Canvas, Visible = false, AutoScroll = true };
+        var help = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = Surface, Padding = new Padding(20) };
+        help.Controls.Add(new Label { Text = T("Совместимость"), Font = _heading, AutoSize = true, Margin = new Padding(0,0,0,12) });
+        _compatibilitySummary = new Label { Text = T("Ожидание данных…"), ForeColor = Muted, AutoSize = true, MaximumSize = new Size(500,0), Margin = new Padding(0,0,0,18) };
+        help.Controls.Add(_compatibilitySummary);
+        help.Controls.Add(new Label { Text = T("Помогите расширить поддержку устройств"), Font = _section, AutoSize = true, Margin = new Padding(0,0,0,8) });
+        help.Controls.Add(new Label { Text = T("Укажите модель устройства и работает ли отображение заряда. Отчёты публичные, данные автоматически не отправляются."), AutoSize = true, MaximumSize = new Size(500,0), ForeColor = Muted, Margin = new Padding(0,0,0,16) });
+        var reportCompatibility = MakeButton(T("Сообщить о совместимости"), 300, true);
+        reportCompatibility.Click += (_, _) => OpenCompatibilityReport();
+        help.Controls.Add(reportCompatibility);
+        var compatibilityList = MakeButton(T("Список совместимости"), 300);
+        compatibilityList.Click += (_, _) => OpenBrowser("https://github.com/kross873/BatteryMonitor/blob/main/docs/COMPATIBILITY.md");
+        help.Controls.Add(compatibilityList);
+        help.Controls.Add(new Label { Text = T("Обнаружение USB-приёмника не гарантирует получение заряда."), AutoSize = true, ForeColor = Muted, MaximumSize = new Size(500,0), Margin = new Padding(0,20,0,0) });
+        compatibility.Controls.Add(help); pages.Controls.Add(compatibility);
         void SelectPage(int page)
         {
-            layout.Visible = page == 0;
-            _appearance.Visible = page == 1;
-            updates.Visible = page == 2;
-            if (page == 1) _appearance.BringToFront(); else if (page == 2) updates.BringToFront(); else layout.BringToFront();
-            PaintButton(devicesTab, page == 0); PaintButton(appearanceTab, page == 1); PaintButton(updatesTab, page == 2);
+            var views = new Control[] { layout, _appearance, updates, compatibility };
+            var buttons = new[] { devicesTab, appearanceTab, updatesTab, compatibilityTab };
+            for (int i = 0; i < views.Length; i++)
+            {
+                views[i].Visible = i == page;
+                PaintNavigation(buttons[i], i == page);
+            }
+            views[page].BringToFront();
         }
         devicesTab.Click += (_, _) => SelectPage(0);
         appearanceTab.Click += (_, _) => SelectPage(1);
         updatesTab.Click += (_, _) => SelectPage(2);
+        compatibilityTab.Click += (_, _) => SelectPage(3);
         SelectPage(0);
 
-        var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8, 6, 8, 10), Margin = Padding.Empty, BackColor = Canvas };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
-        header.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
-        var logo = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 4, 12, 4), BackColor = Canvas };
-        logo.Paint += (_, e) => DrawLogo(e.Graphics, logo.ClientRectangle);
-        header.Controls.Add(logo, 0, 0); header.SetRowSpan(logo, 2);
-        header.Controls.Add(new Label { Text = "Battery Monitor", Dock = DockStyle.Fill, Font = _heading, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty }, 1, 0);
+        var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty, BackColor = Canvas };
+        header.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        header.Controls.Add(new Label { Text = T("Устройства и общие"), Dock = DockStyle.Fill, Font = _heading, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty }, 0, 0);
         _status = new Label { Text = T("Ожидание данных…"), Dock = DockStyle.Fill, ForeColor = Muted, TextAlign = ContentAlignment.TopLeft, Margin = Padding.Empty, AutoEllipsis = true };
-        header.Controls.Add(_status, 1, 1); layout.Controls.Add(header, 0, 0);
-
-        var deviceCard = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(10), Margin = new Padding(0, 0, 0, 8) };
-        // Standard WinForms grid: no deferred ImageList bitmap or owner-draw callbacks.
-        _devices = new DataGridView
-        {
-            Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
-            AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
-            AllowUserToResizeColumns = false, AllowUserToOrderColumns = false,
-            RowHeadersVisible = false, MultiSelect = false, TabStop = false,
-            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
-            BackgroundColor = Surface, BorderStyle = BorderStyle.None,
-            GridColor = Line, CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-            ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-            EnableHeadersVisualStyles = false,
-            ColumnHeadersHeight = 34,
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-            ScrollBars = ScrollBars.Vertical
-        };
-        _devices.RowTemplate.Height = 42;
-        _devices.DefaultCellStyle = new DataGridViewCellStyle
-        {
-            BackColor = Surface, ForeColor = Ink, Font = Font,
-            SelectionBackColor = SelectedFill, SelectionForeColor = Ink,
-            Padding = new Padding(8, 0, 8, 0), WrapMode = DataGridViewTriState.False
-        };
-        _devices.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-        {
-            BackColor = HeaderFill, ForeColor = Ink, Font = _deviceFont,
-            SelectionBackColor = HeaderFill, SelectionForeColor = Ink,
-            Padding = new Padding(8, 0, 8, 0)
-        };
-        _devices.Columns.Add(new DataGridViewTextBoxColumn { Name = "Device", HeaderText = T("Устройство"), FillWeight = 48, MinimumWidth = 140, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _devices.Columns.Add(new DataGridViewTextBoxColumn { Name = "Battery", HeaderText = T("Заряд"), FillWeight = 24, MinimumWidth = 100, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _devices.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = T("Состояние"), FillWeight = 28, MinimumWidth = 120, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _devices.Columns[0].DefaultCellStyle.Font = _deviceFont;
-        _devices.Columns[1].DefaultCellStyle.Font = _deviceFont;
-        deviceCard.Controls.Add(_devices); layout.Controls.Add(deviceCard, 0, 1);
+        header.Controls.Add(_status, 0, 1); layout.Controls.Add(header, 0, 0);
+        _devices = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0,0,0,8), BackColor = Canvas, Padding = new Padding(0,0,2,0) };
+        _devices.SizeChanged += (_, _) => ResizeDeviceCards();
+        layout.Controls.Add(_devices, 0, 1);
 
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
         _refresh = MakeButton(T("↻  Обновить сейчас"), 185);
         _refresh.Click += async (_, _) => await refresh();
         var report = MakeButton(T("Сохранить диагностику"), 220);
         report.Click += (_, _) => diagnostics();
-        var compatibility = MakeButton(T("Сообщить о совместимости"), 270);
-        compatibility.Click += (_, _) =>
-        {
-            if (MessageBox.Show(this, T("Открыть публичную форму GitHub? Данные не отправляются автоматически. Не публикуйте личные данные и непроверенные файлы диагностики."), "Battery Monitor", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
-                return;
-            try
-            {
-                // Fixed public issue form; no device IDs, logs or personal data in the URL.
-                using var browser = Process.Start(new ProcessStartInfo("https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml") { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, T("Не удалось открыть форму GitHub.") + "\n" + ex.Message, "Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        };
-        actions.Controls.Add(_refresh); actions.Controls.Add(report); actions.Controls.Add(compatibility); layout.Controls.Add(actions, 0, 2);
+        actions.Controls.Add(_refresh); actions.Controls.Add(report); layout.Controls.Add(actions, 0, 2);
 
         var group = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(16, 10, 16, 10), Margin = Padding.Empty };
         var options = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6, BackColor = Surface };
@@ -194,7 +175,7 @@ internal sealed class SettingsWindow : Form
         _saveStatus = new Label { Dock = DockStyle.Fill, Text = T("Настройки сохраняются локально"), Font = _small, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
         var save = MakeButton(T("Применить"), 130, true); save.Dock = DockStyle.Fill; save.Click += (_, _) => Apply();
         var close = MakeButton(T("Закрыть"), 110); close.Dock = DockStyle.Fill; close.Click += (_, _) => Close();
-        footer.Controls.Add(_saveStatus, 0, 0); footer.Controls.Add(save, 1, 0); footer.Controls.Add(close, 2, 0); shell.Controls.Add(footer, 0, 2);
+        footer.Controls.Add(_saveStatus, 0, 0); footer.Controls.Add(save, 1, 0); footer.Controls.Add(close, 2, 0); footer.Margin = new Padding(24,0,24,12); shell.Controls.Add(footer, 1, 1);
         AcceptButton = save; CancelButton = close;
     }
 
@@ -205,10 +186,10 @@ internal sealed class SettingsWindow : Form
     }
     private static void PaintButton(Button b, bool primary)
     {
-        b.BackColor = primary ? Blue : Surface; b.ForeColor = primary ? Color.White : Ink;
+        b.BackColor = primary ? Blue : Surface; b.ForeColor = primary ? (Dark ? Color.FromArgb(16,24,32) : Color.White) : Ink;
         b.FlatAppearance.BorderColor = primary ? Blue : Line; b.FlatAppearance.BorderSize = 1;
-        b.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(0, 76, 180) : SelectedFill;
-        b.FlatAppearance.MouseDownBackColor = primary ? Color.FromArgb(0, 65, 155) : HeaderFill;
+        b.FlatAppearance.MouseOverBackColor = primary ? (Dark ? Color.FromArgb(150,201,255) : Color.FromArgb(20,92,172)) : SelectedFill;
+        b.FlatAppearance.MouseDownBackColor = primary ? (Dark ? Color.FromArgb(100,165,235) : Color.FromArgb(17,80,150)) : HeaderFill;
     }
     internal sealed class CardPanel : Panel
     {
@@ -241,31 +222,77 @@ internal sealed class SettingsWindow : Form
         using var pen = new Pen(Color.White, Math.Max(2, size / 23f)); g.DrawRectangle(pen, x, y, w, h); g.DrawLine(pen, x + w + 3, y + h * .32f, x + w + 3, y + h * .68f);
         using var white = new SolidBrush(Color.White); g.FillPolygon(white, new PointF[] { new(x+w*.54f,y+h*.07f), new(x+w*.27f,y+h*.53f), new(x+w*.46f,y+h*.53f), new(x+w*.40f,y+h*.94f), new(x+w*.72f,y+h*.43f), new(x+w*.53f,y+h*.43f) });
     }
+    private static void PaintNavigation(Button b, bool active)
+    {
+        b.BackColor = active ? SelectedFill : Sidebar;
+        b.ForeColor = active ? Ink : Muted;
+        b.FlatAppearance.BorderSize = 0;
+        b.FlatAppearance.MouseOverBackColor = SelectedFill;
+        b.FlatAppearance.MouseDownBackColor = HeaderFill;
+    }
+
+    private void OpenBrowser(string url)
+    {
+        try { using var browser = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) { MessageBox.Show(this, T("Не удалось открыть форму GitHub.") + "\n" + ex.Message, "Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+    private void OpenCompatibilityReport()
+    {
+        if (MessageBox.Show(this, T("Открыть публичную форму GitHub? Данные не отправляются автоматически. Не публикуйте личные данные и непроверенные файлы диагностики."), "Battery Monitor", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+            OpenBrowser("https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml");
+    }
+    private void ResizeDeviceCards()
+    {
+        if (_devices.IsDisposed) return;
+        int available = Math.Max(180, _devices.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 4);
+        int width = available >= 560 ? (available - 24) / 2 : available - 12;
+        foreach (Control card in _devices.Controls) if (card.Width != width) card.Width = width;
+    }
+    private Control CreateDeviceCard(string name, string state, int? percent)
+    {
+        var card = new CardPanel { Width = 300, Height = 132, Margin = new Padding(0,0,12,12), Padding = new Padding(15), AccessibleName = name + " — " + (percent is int p ? p + "%" : T("Недоступен")) };
+        var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Surface, Margin = Padding.Empty };
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
+        content.Controls.Add(new Label { Text = name, Font = _deviceFont, Dock = DockStyle.Fill, AutoEllipsis = true, Margin = Padding.Empty }, 0, 0);
+        content.Controls.Add(new Label { Text = state, ForeColor = Muted, Dock = DockStyle.Fill, AutoEllipsis = true, Font = _small, Margin = Padding.Empty }, 0, 1);
+        var color = percent is int charge ? (charge <= 20 ? Low : Good) : Muted;
+        content.Controls.Add(new Label { Text = percent is int value ? value + "%" : T("Недоступен"), Font = percent.HasValue ? _heading : _section, ForeColor = color, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Margin = Padding.Empty }, 0, 2);
+        var bar = new Panel { Dock = DockStyle.Fill, BackColor = HeaderFill, Margin = Padding.Empty };
+        if (percent is int level)
+        {
+            bar.Paint += (_, e) => { using var brush = new SolidBrush(color); e.Graphics.FillRectangle(brush, 0, 0, bar.ClientSize.Width * level / 100, bar.ClientSize.Height); };
+            bar.Resize += (_, _) => bar.Invalidate();
+        }
+        else bar.Visible = false;
+        content.Controls.Add(bar, 0, 3);
+        card.Controls.Add(content);
+        return card;
+    }
     public void SetSnapshot(IReadOnlyList<Peripheral> devices, string status, bool refreshing)
     {
         if (IsDisposed || Disposing) return;
         _status.Text = status; _refresh.Enabled = !refreshing;
+        _compatibilitySummary.Text = T("Обнаружено устройств:") + " " + devices.Count + "  ·  " + T("Заряд доступен:") + " " + devices.Count(d => d.BatteryPercent is >= 0 and <= 100);
+        var signature = string.Join("\n", devices.Select(d => d.Key + "|" + d.Name + "|" + d.BatteryPercent + "|" + d.Connected));
+        if (_cardSignature == signature && _devices.Controls.Count > 0) return;
+        _cardSignature = signature;
         _devices.SuspendLayout();
         try
         {
-            _devices.Rows.Clear();
-            foreach (var device in devices)
+            while (_devices.Controls.Count > 0) { var old = _devices.Controls[0]; _devices.Controls.RemoveAt(0); old.Dispose(); }
+            foreach (var device in devices.OrderByDescending(d => d.BatteryPercent.HasValue).ThenBy(d => d.Name))
             {
                 bool receiver = device.Name == "Logitech G435 (USB-приёмник)";
                 string name = device.Name == "AJAZZ wireless mouse (3151:5007)" ? "AJAZZ AJ179 APEX" : T(device.Name);
                 int? percent = device.BatteryPercent is >= 0 and <= 100 ? device.BatteryPercent : null;
-                string chargeText = percent is int charge ? $"{charge}%" : T("Недоступен");
                 string state = receiver ? T("Приёмник найден") : device.Key.StartsWith("hid:") ? T("HID обнаружен") : device.Connected ? T("Подключено") : T("Не подключено");
-                var row = _devices.Rows[_devices.Rows.Add(name, chargeText, state)];
-                Color chargeColor = percent is int value ? (value <= 20 ? Low : Good) : Muted;
-                row.Cells[1].Style.ForeColor = chargeColor;
-                row.Cells[1].Style.SelectionForeColor = chargeColor;
-                Color stateColor = state == T("Подключено") ? Good : Muted;
-                row.Cells[2].Style.ForeColor = stateColor;
-                row.Cells[2].Style.SelectionForeColor = stateColor;
+                _devices.Controls.Add(CreateDeviceCard(name, state, percent));
             }
-            if (devices.Count == 0) _devices.Rows.Add(T("Нет данных об устройствах"), "", "");
-            _devices.ClearSelection();
+            if (devices.Count == 0) _devices.Controls.Add(CreateDeviceCard(T("Нет данных об устройствах"), "", null));
+            ResizeDeviceCards();
         }
         finally { _devices.ResumeLayout(); }
     }

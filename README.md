@@ -45,7 +45,7 @@ The checked-in `update-config.json` is intentionally unconfigured. A local build
 
 ## Device compatibility reports
 
-Help expand the list of supported peripherals: select **Report device compatibility** in the app's Devices & general tab or [open the public GitHub report form](https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml). A GitHub account is required to submit a report. Nothing is uploaded by the application. Report successful tests as well as failures; review and redact any optional diagnostics before posting.
+Help expand the list of supported peripherals: select **Report device compatibility** in the app's Compatibility section or [open the public GitHub report form](https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml). A GitHub account is required to submit a report. Nothing is uploaded by the application. Report successful tests as well as failures; review and redact any optional diagnostics before posting.
 
 See the [community compatibility list](docs/COMPATIBILITY.md). Untested models are not claimed as supported.
 

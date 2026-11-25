@@ -23,7 +23,7 @@ internal sealed class UpdatePage : Panel
         var card = new SettingsWindow.CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
         var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = SettingsWindow.Surface };
         flow.Controls.Add(new Label { Text = T("Обновления Battery Monitor"), AutoSize = true, Font = new Font("Segoe UI Semibold", 16f), Margin = new Padding(0,0,0,12) });
-        flow.Controls.Add(new Label { Text = T("Установленная версия:") + " " + UpdateClient.CurrentVersion, AutoSize = true, Margin = new Padding(0,0,0,12) });
+        flow.Controls.Add(new Label { Text = T("Установленная версия:") + " " + UpdateClient.CurrentVersion, AutoSize = true, Font = new Font("Segoe UI Semibold", 15f), Margin = new Padding(0,0,0,12) });
         _status = new Label { Text = UpdateClient.IsConfigured ? T("Нажмите «Проверить обновления».") : T("Источник обновлений ещё не настроен издателем."), AutoSize = true, MaximumSize = new Size(540,0), ForeColor = SettingsWindow.Muted, Margin = new Padding(0,0,0,12) };
         flow.Controls.Add(_status);
         _lastCheck = new Label { AutoSize = true, MaximumSize = new Size(540,0), ForeColor = SettingsWindow.Muted, Margin = new Padding(0,0,0,12) };

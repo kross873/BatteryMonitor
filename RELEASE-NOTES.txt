@@ -1,8 +1,7 @@
-Battery Monitor v0.11.2
+Battery Monitor v0.12.0 — Design Update (test build)
 
-- Expanded standard HID Battery Strength support to declared logical ranges beyond 0-100.
-- Added read-only feature access fallback for compatible drivers.
-- Added an experimental Windows device-node battery percentage fallback.
-- Added battery value validation tests and corrected the diagnostic version label.
-- Proprietary receivers still require a verified protocol; Logitech G435 USB battery remains unavailable.
-- Added a device compatibility report button and a public GitHub issue form, with no automatic diagnostics upload.
+- New Fluent-inspired sidebar and device battery cards.
+- Updated light and dark palettes.
+- Dedicated compatibility section and existing appearance/update controls.
+- Subtle author credit: by kross873.
+- Existing device providers, widget modes and update verification preserved.
