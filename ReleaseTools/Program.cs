@@ -76,7 +76,21 @@ try
         var withNotes = r with { Notes = "Release notes\nSecond line" };
         if (UpdateProtocol.Verify(UpdateProtocol.Sign(withNotes, rsa), rsa.ExportSubjectPublicKeyInfoPem()) != withNotes) throw new Exception("Signed notes round trip failed.");
         ExpectFailure(() => UpdateProtocol.Validate(r with { Notes = new string('x', UpdateProtocol.MaxNotesChars + 1) }));
-        Console.WriteLine("Eight protocol tests passed."); return 0;
+        Console.WriteLine("Eight protocol tests passed.");
+        var ranges = new (uint Raw, int Min, int Max, int Bits, int? Expected)[]
+        {
+            (50, 0, 100, 8, 50), (128, 0, 255, 8, 50), (255, 0, 255, 8, 100),
+            (0, 0, 255, 8, 0), (55, 10, 100, 8, 50), (101, 0, 100, 8, null),
+            (1, 1, 1, 8, null), (255, 0, 100, 7, null), (0, -128, 127, 8, 50),
+            (128, -128, 127, 8, 0), (127, -128, 127, 8, 100), (1, 0, 2, 1, null)
+        };
+        foreach (var x in ranges)
+            if (BatteryValue.FromLogicalRange(x.Raw, x.Min, x.Max, x.Bits) != x.Expected)
+                throw new Exception("Battery range normalization failed: " + x);
+        if (BatteryValue.FromWindowsByte(0) != 0 || BatteryValue.FromWindowsByte(100) != 100 ||
+            BatteryValue.FromWindowsByte(101) != null || BatteryValue.FromWindowsByte(255) != null)
+            throw new Exception("Windows battery percent validation failed.");
+        Console.WriteLine("Battery value tests passed."); return 0;
     }
     throw new ArgumentException("Use configure, sign, or self-test.");
 }

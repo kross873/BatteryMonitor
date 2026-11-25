@@ -25,7 +25,8 @@ Download the official x64 Windows installer from Releases. Choose the standalone
 | AJAZZ AJ179 APEX (USB receiver) | Confirmed on the developer's PC |
 | Other AJAZZ models | Not yet confirmed individually |
 | Bluetooth Battery Service / Windows battery properties | Experimental, device-dependent |
-| Standard HID battery fields | Experimental, device-dependent |
+| Standard HID Battery Strength feature fields (including non-0–100 logical ranges) | Experimental, device-dependent |
+| Windows device-node battery percentage | Experimental fallback, only if the driver exposes it |
 | Windows controller battery API | Experimental, device-dependent |
 | Logitech G435 (USB receiver) | Receiver detection; automatic percentage unavailable |
 | Other proprietary USB receivers | Detection may work; battery protocol support is not guaranteed |
@@ -38,7 +39,7 @@ Requires Windows x64, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dot
 
 1. Clone or download this repository and open its root folder.
 2. Run `build-windows.cmd` to build the portable application in `publish/`, or `build-setup.cmd` to build the installer in `release/`.
-3. Run `test-updates.cmd` to exercise the update protocol tests.
+3. Run `test-updates.cmd` to exercise the update protocol and battery-value normalization tests.
 
 The checked-in `update-config.json` is intentionally unconfigured. A local build works without automatic updates. Official release builds use the publisher's own configuration and signing key. See [publisher notes](docs/DEVELOPMENT-RU.md) for the existing release workflow. Do not generate a replacement key for an already published update channel.
 

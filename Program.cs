@@ -111,7 +111,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(T("Обновить сейчас"), null, async (_, _) => await RefreshDevicesAsync());
         menu.Items.Add(T("Сохранить диагностику..."), null, (_, _) => SaveDiagnostics());
         menu.Items.Add(T("О программе"), null, (_, _) => MessageBox.Show(
-            "Battery Monitor 0.11.1\n\n" + T("Режим:") + " " + (_windhawkMode ? T("Windhawk (мод 0.4.0)") : T("Самостоятельный виджет")) + "\n" + T("До трёх устройств.") + "\n" + T("AJAZZ, стандартный HID, Bluetooth и контроллеры Windows.") + "\n" + T("USB G435 — точный заряд неизвестен."),
+            "Battery Monitor 0.11.2\n\n" + T("Режим:") + " " + (_windhawkMode ? T("Windhawk (мод 0.4.0)") : T("Самостоятельный виджет")) + "\n" + T("До трёх устройств.") + "\n" + T("AJAZZ, стандартный HID, Bluetooth и контроллеры Windows.") + "\n" + T("USB G435 — точный заряд неизвестен."),
             "Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Information));
         menu.Items.Add(T("Выход"), null, (_, _) => ExitThread());
 
@@ -394,7 +394,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         using var dialog = new SaveFileDialog
         {
             Title = T("Сохранить диагностику Battery Monitor"),
-            FileName = "BatteryMonitor-diagnostics-v0.11.1.txt",
+            FileName = "BatteryMonitor-diagnostics-v0.11.2.txt",
             Filter = T("Текст (*.txt)|*.txt"),
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
         };

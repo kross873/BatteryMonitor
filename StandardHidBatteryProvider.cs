@@ -6,9 +6,9 @@ namespace BatteryMonitor;
 internal static partial class HidUsbScanner
 {
     // USB HID Usage Tables: Generic Device Controls / Battery Strength (06:20).
-    // Read only explicitly declared scalar feature values whose logical range is 0..100.
+    // Read only declared scalar battery feature values; normalize the documented logical range.
     // No writes, guessed report IDs, input-report interception or configuration commands.
-    private static int? TryReadStandardBattery(SafeFileHandle handle, IntPtr preparsed, HIDP_CAPS caps)
+    private static int? TryReadStandardBattery(SafeFileHandle handle, string path, IntPtr preparsed, HIDP_CAPS caps)
     {
         if (caps.FeatureReportByteLength is < 2 or > 1024 || caps.NumberFeatureValueCaps is 0 or > 256) return null;
         const int HidPFeature = 2;
@@ -19,13 +19,25 @@ internal static partial class HidUsbScanner
         for (int i = 0; i < Math.Min(count, values.Length); i++)
         {
             var cap = values[i];
-            if (cap.UsagePage != 6 || cap.IsRange != 0 || cap.Usage != 0x20 || cap.IsAbsolute == 0 ||
-                cap.LogicalMin != 0 || cap.LogicalMax != 100 || cap.ReportCount != 1 || cap.BitSize is < 7 or > 32) continue;
+            bool matches = cap.IsRange != 0 ? cap.Usage <= 0x20 && cap.UsageMax >= 0x20 : cap.Usage == 0x20;
+            if (cap.UsagePage != 6 || !matches || cap.IsAbsolute == 0 ||
+                cap.LogicalMin >= cap.LogicalMax || cap.ReportCount != 1 || cap.BitSize is < 1 or > 32) continue;
             var report = new byte[caps.FeatureReportByteLength];
             report[0] = cap.ReportID;
-            if (!HidD_GetFeature(handle, report, report.Length) || report[0] != cap.ReportID) continue;
-            if (HidP_GetUsageValue(HidPFeature, 0x06, cap.LinkCollection, 0x20, out uint value, preparsed, report, (uint)report.Length) == Success && value <= 100)
-                return (int)value;
+            bool read = HidD_GetFeature(handle, report, report.Length);
+            if (!read)
+            {
+                // Some drivers require a read-access handle. Never request write access here.
+                using var reader = CreateFileW(path, GenericRead, FileShareRead | FileShareWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+                if (reader.IsInvalid) continue;
+                Array.Clear(report);
+                report[0] = cap.ReportID;
+                read = HidD_GetFeature(reader, report, report.Length);
+            }
+            if (!read || report[0] != cap.ReportID) continue;
+            if (HidP_GetUsageValue(HidPFeature, 0x06, cap.LinkCollection, 0x20, out uint value, preparsed, report, (uint)report.Length) == Success &&
+                BatteryValue.FromLogicalRange(value, cap.LogicalMin, cap.LogicalMax, cap.BitSize) is int percent)
+                return percent;
         }
         return null;
     }
@@ -57,6 +69,7 @@ internal static partial class HidUsbScanner
         [FieldOffset(40)] public int LogicalMin;
         [FieldOffset(44)] public int LogicalMax;
         [FieldOffset(56)] public ushort Usage;
+        [FieldOffset(58)] public ushort UsageMax;
     }
     [DllImport("hid.dll")] private static extern int HidP_GetSpecificValueCaps(int reportType, ushort usagePage, ushort linkCollection, ushort usage, [Out] HIDP_VALUE_CAPS[] caps, ref ushort count, IntPtr preparsed);
     [DllImport("hid.dll")] private static extern int HidP_GetUsageValue(int reportType, ushort usagePage, ushort linkCollection, ushort usage, out uint value, IntPtr preparsed, [In] byte[] report, uint reportLength);

@@ -20,7 +20,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo SUCCESS: release\BatteryMonitor-0.11.1-Setup.exe
+echo SUCCESS: release\BatteryMonitor-0.11.2-Setup.exe
 if /i "%~1"=="nopause" exit /b 0
 pause
 exit /b 0

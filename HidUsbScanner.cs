@@ -23,7 +23,7 @@ internal static partial class HidUsbScanner
     internal static Result Scan()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Battery Monitor 0.10.1 / HID device discovery");
+        sb.AppendLine("Battery Monitor " + UpdateClient.CurrentVersion + " / HID device discovery");
         sb.AppendLine($"Created: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine("Paths, serial numbers and MAC addresses are NOT included.");
         sb.AppendLine("Only AJAZZ VID_3151 PID_5007 usage FFFF:0002: SET_FEATURE 0xF7 telemetry poll, followed by GET_FEATURE 0x05. No configuration changes.");
@@ -92,7 +92,7 @@ internal static partial class HidUsbScanner
                                 inputLength = caps.InputReportByteLength;
                                 outputLength = caps.OutputReportByteLength;
                                 if (!isAjazz && !isHeadset)
-                                    standardPercent = TryReadStandardBattery(handle, preparsed, caps);
+                                    standardPercent = TryReadStandardBattery(handle, devicePath, preparsed, caps);
                             }
                         }
                         finally { HidD_FreePreparsedData(preparsed); }
@@ -121,16 +121,22 @@ internal static partial class HidUsbScanner
                     }
                     if (!isAjazz && !isHeadset)
                     {
+                        // Exact present device node only; no guessing from unrelated containers.
+                        int? windowsPercent = standardPercent.HasValue ? null : TryReadWindowsBattery(set, ref info);
+                        int? batteryPercent = standardPercent ?? windowsPercent;
                         string id = $"hid:{attr.VendorID:X4}:{attr.ProductID:X4}";
                         var container = ReadContainerId(set, ref info);
                         if (container.HasValue) id += ":" + container.Value.ToString("N");
                         string name = isDualSense ? "Sony DualSense" : isDualShock ? "Sony DualShock 4" :
                             ReadProductName(handle) ?? brand ?? (usage == 2 ? "Мышь" : usage == 6 ? "Клавиатура" : "HID-устройство");
-                        var candidate = new Peripheral($"{name} (HID {attr.VendorID:X4}:{attr.ProductID:X4})", standardPercent, true,
-                            standardPercent.HasValue ? "HID: стандартный Battery Strength (0–100)" : "HID обнаружен; заряд не предоставлен. Может быть проводным или USB-приёмником.", id, name);
+                        var candidate = new Peripheral($"{name} (HID {attr.VendorID:X4}:{attr.ProductID:X4})", batteryPercent, true,
+                            standardPercent.HasValue ? "HID: Battery Strength (normalized descriptor range)" :
+                            windowsPercent.HasValue ? "Windows: System.Devices.BatteryLife (driver-reported)" :
+                            "HID обнаружен; заряд не предоставлен. Может быть проводным или USB-приёмником.", id, name);
                         if (!otherDevices.TryGetValue(id, out var previous) || (!previous.BatteryPercent.HasValue && candidate.BatteryPercent.HasValue))
                             otherDevices[id] = candidate;
                         if (standardPercent.HasValue) sb.AppendLine($"Standard HID battery: {standardPercent}%");
+                        else if (windowsPercent.HasValue) sb.AppendLine($"Windows device battery property: {windowsPercent}%");
                     }
                 }
                 catch (Exception ex)
@@ -153,6 +159,16 @@ internal static partial class HidUsbScanner
         else sb.AppendLine("G435: no battery commands attempted; reported % cannot be derived from this receiver's HID caps.");
         discovered.AddRange(otherDevices.Values);
         return new Result(discovered, sb.ToString());
+    }
+
+    // PKEY_Devices_BatteryLife (Microsoft property system): byte, percent; 101 = unknown.
+    // Optional: many drivers do not expose this property on the actual device node.
+    private static int? TryReadWindowsBattery(IntPtr set, ref SP_DEVINFO_DATA info)
+    {
+        var property = new DEVPROPKEY { fmtid = new Guid("49CD1F76-5626-4B17-A4E8-18B4AA1A2213"), pid = 10 };
+        var bytes = new byte[1];
+        if (!SetupDiGetDevicePropertyW(set, ref info, ref property, out uint type, bytes, 1, out uint required, 0) || type != 3 || required != 1) return null;
+        return BatteryValue.FromWindowsByte(bytes[0]);
     }
 
     // DEVPKEY_Device_ContainerId groups collections of the same physical device.
