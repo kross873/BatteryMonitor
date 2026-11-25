@@ -10,6 +10,7 @@ internal static class UpdateClient
     internal static Version CurrentVersion { get; } = new Version(typeof(UpdateClient).Assembly.GetName().Version!.ToString(3));
     private static readonly Lazy<UpdateConfig?> Config = new(ReadConfig);
     internal static bool IsConfigured => Config.Value != null;
+    internal static Uri? ReleasesPage => Config.Value is { } config ? new Uri($"https://github.com/{config.Repository}/releases") : null;
     private static readonly Lazy<HttpClient> Http = new(() => new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan });
     private static UpdateConfig? ReadConfig()
     {
@@ -69,6 +70,7 @@ internal static class UpdateClient
             buffer.Write(chunk, 0, count);
         }
         var release = UpdateProtocol.Verify(buffer.ToArray(), config.PublicKey);
+        UpdatePreferences.RecordSuccessfulCheck();
         return UpdateProtocol.ParseVersion(release.Version) > CurrentVersion ? release : null;
     }
     internal static async Task<string> DownloadAsync(UpdateRelease release, IProgress<int> progress, CancellationToken cancellationToken)

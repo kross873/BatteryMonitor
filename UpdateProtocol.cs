@@ -1,17 +1,24 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace BatteryMonitor;
 
 internal sealed record UpdateConfig(string Repository, string PublicKey);
 internal sealed record UpdateEnvelope(string Payload, string Signature);
-internal sealed record UpdateRelease(string Version, string Asset, long Size, string Sha256);
+internal sealed record UpdateRelease(string Version, string Asset, long Size, string Sha256)
+{
+    // Optional signed metadata; older clients ignore unknown JSON properties.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Notes { get; init; }
+}
 
 internal static class UpdateProtocol
 {
     public const long MaxInstallerBytes = 512L * 1024 * 1024;
     public const int MaxManifestBytes = 64 * 1024;
+    public const int MaxNotesChars = 4000;
     public static bool ValidRepository(string? repository) => repository != null &&
         Regex.IsMatch(repository, @"\A[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}\z") &&
         repository.Split('/')[1] is not "." and not "..";
@@ -26,7 +33,7 @@ internal static class UpdateProtocol
     public static void Validate(UpdateRelease r)
     {
         if (r.Asset != AssetName(r.Version) || r.Size <= 0 || r.Size > MaxInstallerBytes ||
-            r.Sha256 == null || !Regex.IsMatch(r.Sha256, @"\A[0-9A-Fa-f]{64}\z"))
+            r.Notes is { Length: > MaxNotesChars } || r.Sha256 == null || !Regex.IsMatch(r.Sha256, @"\A[0-9A-Fa-f]{64}\z"))
             throw new InvalidDataException("Invalid release metadata.");
     }
     public static byte[] Sign(UpdateRelease release, RSA privateKey)

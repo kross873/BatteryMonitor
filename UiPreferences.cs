@@ -47,6 +47,12 @@ internal sealed record UiPreferences(string Language, string Theme)
     private static readonly Dictionary<string, (string Uk, string En)> Translations = new()
     {
         ["Обновления"] = ("Оновлення", "Updates"),
+        ["Открыть релизы GitHub"] = ("Відкрити релізи GitHub", "Open GitHub releases"),
+        ["Что нового"] = ("Що нового", "What's new"),
+        ["Нет доступного обновления."] = ("Немає доступного оновлення.", "No update available."),
+        ["Описание изменений не предоставлено."] = ("Опис змін не надано.", "Release notes not provided."),
+        ["Последняя успешная проверка:"] = ("Остання успішна перевірка:", "Last successful check:"),
+        ["Ещё не выполнялась"] = ("Ще не виконувалася", "Not checked yet"),
         ["Обновления Battery Monitor"] = ("Оновлення Battery Monitor", "Battery Monitor updates"),
         ["Установленная версия:"] = ("Встановлена версія:", "Installed version:"),
         ["Нажмите «Проверить обновления»."] = ("Натисніть «Перевірити оновлення».", "Select Check for updates."),

@@ -46,6 +46,13 @@ try
         if (rsa.ExportSubjectPublicKeyInfoPem() != config.PublicKey) throw new CryptographicException("Wrong signing key.");
         using var file = File.OpenRead(setup);
         var release = new UpdateRelease(version, asset, file.Length, Convert.ToHexString(SHA256.HashData(file)));
+        string notesPath = Path.Combine(root, "RELEASE-NOTES.txt");
+        if (File.Exists(notesPath))
+        {
+            string notes = File.ReadAllText(notesPath).Trim();
+            if (notes.Length > UpdateProtocol.MaxNotesChars) throw new InvalidDataException("Release notes exceed the allowed length.");
+            if (notes.Length > 0) release = release with { Notes = notes };
+        }
         byte[] manifest = UpdateProtocol.Sign(release, rsa);
         _ = UpdateProtocol.Verify(manifest, config.PublicKey);
         File.WriteAllBytes(Path.Combine(root, "release", "update.json"), manifest);
@@ -66,7 +73,10 @@ try
         ExpectFailure(() => UpdateProtocol.Validate(r with { Asset = "other.exe" }));
         if (UpdateProtocol.MatchesHash(SHA256.HashData(new byte[]{1,2,4}), r.Sha256)) throw new Exception("Bad hash accepted.");
         if (!(UpdateProtocol.ParseVersion("0.11.10") > UpdateProtocol.ParseVersion("0.11.2"))) throw new Exception("Version comparison failed.");
-        Console.WriteLine("Six protocol tests passed."); return 0;
+        var withNotes = r with { Notes = "Release notes\nSecond line" };
+        if (UpdateProtocol.Verify(UpdateProtocol.Sign(withNotes, rsa), rsa.ExportSubjectPublicKeyInfoPem()) != withNotes) throw new Exception("Signed notes round trip failed.");
+        ExpectFailure(() => UpdateProtocol.Validate(r with { Notes = new string('x', UpdateProtocol.MaxNotesChars + 1) }));
+        Console.WriteLine("Eight protocol tests passed."); return 0;
     }
     throw new ArgumentException("Use configure, sign, or self-test.");
 }

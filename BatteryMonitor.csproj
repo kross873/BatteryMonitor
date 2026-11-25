@@ -10,7 +10,7 @@
     <RootNamespace>BatteryMonitor</RootNamespace>
     <ApplicationIcon>BatteryMonitor.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.11.0</Version>
+    <Version>0.11.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="ReleaseTools/**/*.cs" />
