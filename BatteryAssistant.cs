@@ -13,11 +13,18 @@ internal sealed record AssistantNotice(string Module, AssistantKind Kind, Assist
     internal bool Urgent => Kind is AssistantKind.Low or AssistantKind.Critical;
     internal DomovoiMood Mood => Kind switch
     {
+        AssistantKind.Low or AssistantKind.Critical when Percent is <= 5 => DomovoiMood.BatteryEmptySign,
+        AssistantKind.Low or AssistantKind.Critical when Percent is <= 10 => DomovoiMood.BatteryCriticalSign,
+        AssistantKind.Low or AssistantKind.Critical when Percent.HasValue => DomovoiMood.BatterySign,
         AssistantKind.Low or AssistantKind.Critical => DomovoiMood.Worried,
-        AssistantKind.Full or AssistantKind.Rising => DomovoiMood.Happy,
-        AssistantKind.Found => DomovoiMood.Wave,
-        AssistantKind.Missing => DomovoiMood.Worried,
-        _ => DomovoiMood.Wave
+        AssistantKind.Full => DomovoiMood.ChargeFull,
+        AssistantKind.Rising => DomovoiMood.ChargeRising,
+        AssistantKind.Found => DomovoiMood.DeviceFound,
+        AssistantKind.Missing => DomovoiMood.SignalLost,
+        AssistantKind.Update => DomovoiMood.UpdateDelivery,
+        AssistantKind.Compatibility => DomovoiMood.CompatibilityInspect,
+        AssistantKind.Info when Destination == AssistantDestination.Appearance => DomovoiMood.WidgetTune,
+        _ => DomovoiMood.Guide
     };
 }
 

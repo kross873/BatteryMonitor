@@ -5,7 +5,7 @@ namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
-internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched, GitHubSign, TikTokSign, TelegramSign, BatterySign }
+internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched, GitHubSign, TikTokSign, TelegramSign, BatterySign, BatteryCriticalSign, BatteryEmptySign, ChargeRising, ChargeFull, DeviceFound, SignalLost, CompatibilityInspect, UpdateDelivery, WidgetTune, Guide }
 
 internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot, Hat, Beard }
 internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
@@ -90,6 +90,12 @@ internal static class DomovoiArt
     {
         var pose = Pose(time, swing, mood);
         float w = (float)Math.Sin(actionTime * 7);
+        // Each event has a separate choreography; use elapsed action time rather
+        // than the global clock so every test starts with the same entrance.
+        float slow = (float)Math.Sin(actionTime * 3.0);
+        float pulse = (float)Math.Abs(Math.Sin(actionTime * 4.2));
+        float beat = (float)Math.Sin(actionTime * 5.0);
+        float enter = (float)Math.Clamp(actionTime / .7, 0, 1);
         return mood switch
         {
             DomovoiMood.Wave => pose with { RightArm = -122 + w * 13, Head = -5, LeftArm = 6 },
@@ -98,10 +104,26 @@ internal static class DomovoiArt
             DomovoiMood.Stretch => pose with { LeftArm = 110, RightArm = -110, Head = -7, Bob = -6 },
             DomovoiMood.Petting => pose with { Head = w * 3, Bob = 2, LeftArm = 12, RightArm = -12 },
             DomovoiMood.Annoyed => pose with { LeftArm = 18, RightArm = -18, Head = -5 },
-            DomovoiMood.Sitting or DomovoiMood.Perched => pose with { Bob = 15, LeftLeg = 65, RightLeg = -65, LeftArm = -10, RightArm = 10, Head = 3 },
+            DomovoiMood.Sitting => pose with { Bob = 15, LeftLeg = 65, RightLeg = -65, LeftArm = -10, RightArm = 10, Head = 3 },
+            DomovoiMood.Perched => pose with { Bob = 12, LeftLeg = 28 + slow * 9, RightLeg = -28 + slow * 9, LeftArm = -4, RightArm = 4, Head = -4 + slow * 2 },
             DomovoiMood.Tea => pose with { Bob = 12, LeftLeg = 50, RightLeg = -50, LeftArm = -9, RightArm = -42 - 25 * (float)(.5 + .5 * Math.Sin(actionTime * 2.1)), Head = 6 },
             DomovoiMood.Coding => pose with { Bob = 14, LeftLeg = 52, RightLeg = -52, LeftArm = -23 + w * 4, RightArm = 23 + w * 4, Head = 7 + w * 1.3f },
-            DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign or DomovoiMood.BatterySign => pose with { LeftArm = 38, RightArm = -38, Head = -3, Bob = -2 },
+            // Social boards keep the shared hands/bounds hit-testing but have distinct motion.
+            DomovoiMood.GitHubSign => pose with { LeftArm = 32 + slow * 2, RightArm = -32 - slow * 2, Head = slow * 5, Bob = 1 },
+            DomovoiMood.TikTokSign => pose with { LeftArm = 33 + beat * 5, RightArm = -33 + beat * 5, Head = beat * 7, Bob = -7 * pulse, LeftLeg = 9 * beat, RightLeg = -9 * beat },
+            DomovoiMood.TelegramSign => pose with { LeftArm = 48 - 14 * enter + slow * 2, RightArm = -48 + 14 * enter + slow * 2, Head = -9 + enter * 5, Bob = -3 },
+            // 20%: quiet reminder. 10%: lean forward and insist. 5%: crouch and shake the SOS board.
+            DomovoiMood.BatterySign => pose with { LeftArm = 26 + slow * 2, RightArm = -26 - slow * 2, Head = 7 + slow * 4, Bob = 4 },
+            DomovoiMood.BatteryCriticalSign => pose with { LeftArm = 41 + beat * 4, RightArm = -41 - beat * 4, Head = -9 + pulse * 4, Bob = -5 * pulse },
+            DomovoiMood.BatteryEmptySign => pose with { LeftArm = 30 + w * 5, RightArm = -30 + w * 5, LeftLeg = 28, RightLeg = -28, Head = w * 6, Bob = 12 + pulse * 3, Hat = -w * 5 },
+            DomovoiMood.ChargeRising => pose with { LeftArm = 11, RightArm = -65 - 30 * pulse, Head = -7 - 4 * pulse, Bob = -4 * pulse },
+            DomovoiMood.ChargeFull => pose with { LeftArm = 105 + beat * 10, RightArm = -105 - beat * 10, LeftLeg = 8 * beat, RightLeg = -8 * beat, Head = -5 + slow * 5, Bob = -9 * pulse },
+            DomovoiMood.DeviceFound => pose with { LeftArm = -7, RightArm = -22 - 12 * pulse, Head = 9 - 18 * pulse, Bob = 4 },
+            DomovoiMood.SignalLost => pose with { LeftArm = 65 + slow * 6, RightArm = -12, Head = -15 * slow, Bob = 3 },
+            DomovoiMood.CompatibilityInspect => pose with { LeftArm = 5, RightArm = -57 + slow * 9, Head = 12 + slow * 4, Bob = 6 },
+            DomovoiMood.UpdateDelivery => pose with { LeftArm = 25 + slow * 3, RightArm = -28, Head = -6, Bob = 2 - 5 * pulse },
+            DomovoiMood.WidgetTune => pose with { LeftArm = 23, RightArm = -36 + beat * 9, Head = 7 + beat * 2, Bob = 5 },
+            DomovoiMood.Guide => pose with { LeftArm = 12, RightArm = -88 + slow * 5, Head = -8, Bob = 0 },
             _ => pose
         };
     }
@@ -192,7 +214,7 @@ internal static class DomovoiArt
         return (Math.Atan2(ay, ax) - Math.Atan2(dy, dx)) * 180 / Math.PI;
     }
 
-    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing, float lookX = 0, float lookY = 0, double signAmount = 0, string batteryText = "")
+    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing, float lookX = 0, float lookY = 0, double signAmount = 0, string batteryText = "", double actionTime = 0)
     {
         var state = g.Save();
         try
@@ -200,7 +222,7 @@ internal static class DomovoiArt
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             float scale = ScaleFor(width,height);
-            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood is DomovoiMood.Happy or DomovoiMood.Petting or DomovoiMood.Dance or DomovoiMood.Wave || (DomovoiSign.IsSign(mood) && mood != DomovoiMood.BatterySign);
+            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood is DomovoiMood.Happy or DomovoiMood.Petting or DomovoiMood.Dance or DomovoiMood.Wave || (DomovoiSign.IsSign(mood) && !DomovoiSign.IsBatterySign(mood)) || mood is DomovoiMood.ChargeFull or DomovoiMood.ChargeRising;
             g.TranslateTransform(width / 2f, height / 2f);
             g.RotateTransform((float)angle);
             g.ScaleTransform(scale * facing, scale);
@@ -261,6 +283,7 @@ internal static class DomovoiArt
                 Draw("M 159 340 L 146 351 159 362 M 201 340 L 214 351 201 362 M 188 337 L 173 365", -1, 0xb8f0e4, 4);
             }
 
+            DomovoiScenes.PaintProps(g, pose, mood, actionTime);
             // A separate head joint follows the body with a little lag.
             var head = g.Save();
             g.TranslateTransform(180, 255);
@@ -297,12 +320,27 @@ internal static class DomovoiArt
             {
                 Draw("M 124 169 L 150 194 M 150 169 L 124 194 M 210 169 L 236 194 M 236 169 L 210 194", -1, 0xf4eaff, 6);
             }
-            else if (held || mood is DomovoiMood.Worried or DomovoiMood.BatterySign)
+            else if (held || mood == DomovoiMood.Worried || DomovoiSign.IsBatterySign(mood))
             {
                 Ellipse(130, 166, 15, 25, 0xf3eaff, sw: 0);
                 Ellipse(216, 166, 15, 25, 0xf3eaff, sw: 0);
                 Draw("M 119 161 L 151 156 M 209 156 L 241 161", -1,
-                    mood is DomovoiMood.Worried or DomovoiMood.BatterySign ? 0xf2b7b7 : 0xf4eaff, 5);
+                    mood == DomovoiMood.Worried || DomovoiSign.IsBatterySign(mood) ? 0xf2b7b7 : 0xf4eaff, 5);
+            }
+            else if (mood == DomovoiMood.DeviceFound)
+            {
+                Ellipse(127, 167, 19, 24, 0xf4eaff, sw: 0);
+                Ellipse(213, 167, 19, 24, 0xf4eaff, sw: 0);
+            }
+            else if (mood == DomovoiMood.SignalLost)
+            {
+                Draw("M 119 164 L 151 170 M 209 170 L 241 164", -1, 0xf1c0ce, 6);
+                Ellipse(131, 175, 11, 17, 0xf4eaff, sw: 0);
+                Ellipse(217, 175, 11, 17, 0xf4eaff, sw: 0);
+            }
+            else if (mood == DomovoiMood.CompatibilityInspect || mood == DomovoiMood.WidgetTune)
+            {
+                Draw("M 122 180 L 151 177 M 209 177 L 238 180", -1, 0xf4eaff, 6);
             }
             else if (mood == DomovoiMood.Annoyed)
             {

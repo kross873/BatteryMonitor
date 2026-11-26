@@ -35,7 +35,9 @@ internal sealed class AssistantPopup : Form
             double t = _clock.Elapsed.TotalSeconds;
             var mood = notice.Mood;
             DomovoiArt.Paint(e.Graphics, _mascot.Width, _mascot.Height, t, 0,
-                DomovoiArt.ActionPose(t, 0, mood, t), mood, 1);
+                DomovoiArt.ActionPose(t, 0, mood, t), mood, 1,
+                signAmount: DomovoiSign.IsSign(mood) ? DomovoiSign.Reveal(t, 9 - t) : 0,
+                batteryText: notice.Percent is int percent ? percent + "%" : "", actionTime: t);
         };
         var right = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = Padding.Empty };
         right.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));

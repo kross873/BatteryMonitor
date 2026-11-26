@@ -36,3 +36,10 @@ Three explicit menu actions in Domovoi actions show GitHub (BatteryMonitor repos
 - Check no repeated warnings for unchanged readings. Check session forecast only after 5 samples, 30 min and 5% decline; resets on rises, missing values and scan failures. No data transmitted or saved to disk.
 - Check the assistant strip, details dialog, targeted card scrolling/highlight, clickable battery board, quick menu, all three languages and both themes. Check DND and opt-in outside-window alerts (no focus steal, rate limit, closes itself, click opens actual device).
 - Check manual/automatic update notice, compatibility navigation, diagnostics, existing social signs and grip physics. No release until build and Windows test.
+
+
+## Unique assistant choreography (DEV)
+
+- Trigger each threshold 20/10/5: amber nod, orange urgent motion, red SOS crouch. Check exact charge, same sign hit geometry, release-to-click, mirrored labels.
+- Verify rising (upward arrow), full (celebration), found (device check), missing (search), compatibility (magnifier), update (parcel), appearance (sliders), guide (pointing). Social signs and sitting/perch use distinct poses. Outside-window alerts reuse the correct threshold choreography in miniature.
+- Check scene transitions, no clipping, dragging/physics, no extra polling or changes to real readings. Windows compile and visual check pending.

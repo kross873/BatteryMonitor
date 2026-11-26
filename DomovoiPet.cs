@@ -31,11 +31,11 @@ internal sealed class DomovoiPet : Control
             (!requested && (_hover || _actionRemaining > 0 || _happy > 0 || _dizzy > 0))) return false;
         if (notice.Urgent && notice.Percent.HasValue)
         {
-            StartAction(DomovoiMood.BatterySign, 9);
+            StartAction(notice.Mood, 9);
             _batterySignText = notice.Percent.Value + "%";
             _batterySignClick = open;
         }
-        else StartAction(notice.Mood, 3.5);
+        else StartAction(notice.Mood, 5.5);
         if (target != null && target().HasValue) _assistantTarget = target;
         return true;
     }
@@ -158,7 +158,7 @@ internal sealed class DomovoiPet : Control
             var g = _surface.Graphics;
             g.Clear(Color.Transparent);
             double signAmount = DomovoiSign.IsSign(Mood) ? DomovoiSign.Reveal(_actionElapsed,_actionRemaining) : 0;
-            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY, signAmount, _batterySignText);
+            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY, signAmount, _batterySignText, _actionElapsed);
             _surface.Present(Handle);
             _renderedPose = pose; _renderedAngle = _angle; _renderedFacing = _facing;
             _lastMood = Mood;
@@ -270,7 +270,7 @@ internal sealed class DomovoiPet : Control
         _perchTarget = null;
         _assistantTarget = null; _batterySignClick = null;
         _actionMood = mood; _actionRemaining = seconds; _actionElapsed = 0;
-        if (DomovoiSign.IsSign(mood) && mood != DomovoiMood.BatterySign) _nextSignTime = _time + 120;
+        if (DomovoiSign.IsSign(mood) && !DomovoiSign.IsBatterySign(mood)) _nextSignTime = _time + 120;
     }
 
     private void ClearRotation()
@@ -339,7 +339,7 @@ internal sealed class DomovoiPet : Control
             if (!holdSign) _actionRemaining = Math.Max(0, _actionRemaining - dt);
             _actionElapsed += dt;
         }
-        if (Mood == DomovoiMood.BatterySign && _actionRemaining <= 0) _batterySignClick = null;
+        if (DomovoiSign.IsBatterySign(_actionMood) && _actionRemaining <= 0) _batterySignClick = null;
         if (_assistantTarget != null)
         {
             var target = _assistantTarget();
@@ -530,7 +530,7 @@ internal sealed class DomovoiPet : Control
 
     private void OpenSign(DomovoiMood mood)
     {
-        if (mood == DomovoiMood.BatterySign) { _batterySignClick?.Invoke(); return; }
+        if (DomovoiSign.IsBatterySign(mood)) { _batterySignClick?.Invoke(); return; }
         string? url = DomovoiSign.Url(mood);
         if (url == null) return;
         try

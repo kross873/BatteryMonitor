@@ -7,7 +7,9 @@ namespace BatteryMonitor;
 internal static class DomovoiSign
 {
     internal static bool IsSign(DomovoiMood mood) =>
-        mood is DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign or DomovoiMood.BatterySign;
+        mood is DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign || IsBatterySign(mood);
+
+    internal static bool IsBatterySign(DomovoiMood mood) => mood is DomovoiMood.BatterySign or DomovoiMood.BatteryCriticalSign or DomovoiMood.BatteryEmptySign;
 
     internal static string? Url(DomovoiMood mood) => mood switch
     {
@@ -53,7 +55,9 @@ internal static class DomovoiSign
         {
             DomovoiMood.GitHubSign => ("GitHub","BatteryMonitor",Color.FromArgb(36,38,49),Color.FromArgb(187,202,235)),
             DomovoiMood.TikTokSign => ("TikTok","@domovoi.dev",Color.FromArgb(30,28,39),Color.FromArgb(91,237,228)),
-            DomovoiMood.BatterySign => (batteryText, "BATTERY !", Color.FromArgb(73,38,49), Color.FromArgb(255,175,154)),
+            DomovoiMood.BatterySign => (batteryText, "BATTERY", Color.FromArgb(69,53,34), Color.FromArgb(250,208,130)),
+            DomovoiMood.BatteryCriticalSign => (batteryText, "LOW !", Color.FromArgb(86,44,36), Color.FromArgb(255,157,101)),
+            DomovoiMood.BatteryEmptySign => (batteryText, "SOS", Color.FromArgb(73,30,47), Color.FromArgb(255,125,143)),
             _ => ("Telegram","@podkrovatyuuu",Color.FromArgb(30,94,144),Color.FromArgb(181,232,255))
         };
         var r = Bounds(pose,amount);
