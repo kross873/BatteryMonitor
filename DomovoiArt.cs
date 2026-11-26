@@ -5,7 +5,7 @@ namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
-internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried }
+internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed }
 
 internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot }
 internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
@@ -76,6 +76,30 @@ internal static class DomovoiArt
         float arm = held ? (float)(swing * .65 + wave * 8) : walking ? (float)(wave * 16) : (float)(wave * 2);
         return new(bob, happy ? 26 : arm, happy ? -30 : -arm, kick, -kick,
             held ? (float)Math.Clamp(-swing * .18, -14, 14) : sleepy ? -7 : walking ? (float)(wave * 3) : 0);
+    }
+
+    internal static DomovoiPose Blend(DomovoiPose a, DomovoiPose b, double dt)
+    {
+        float t = (float)(1 - Math.Exp(-15 * Math.Max(0, dt)));
+        float L(float x, float y) => x + (y - x) * t;
+        return new(L(a.Bob,b.Bob), L(a.LeftArm,b.LeftArm), L(a.RightArm,b.RightArm),
+            L(a.LeftLeg,b.LeftLeg), L(a.RightLeg,b.RightLeg), L(a.Head,b.Head));
+    }
+
+    internal static DomovoiPose ActionPose(double time, double swing, DomovoiMood mood, double actionTime)
+    {
+        var pose = Pose(time, swing, mood);
+        float w = (float)Math.Sin(actionTime * 7);
+        return mood switch
+        {
+            DomovoiMood.Wave => pose with { RightArm = -122 + w * 13, Head = -5, LeftArm = 6 },
+            DomovoiMood.Dance => pose with { Bob = -12 * Math.Abs(w), LeftArm = 35 + w * 30,
+                RightArm = -35 + w * 30, LeftLeg = w * 26, RightLeg = -w * 26, Head = w * 7 },
+            DomovoiMood.Stretch => pose with { LeftArm = 110, RightArm = -110, Head = -7, Bob = -6 },
+            DomovoiMood.Petting => pose with { Head = w * 3, Bob = 2, LeftArm = 12, RightArm = -12 },
+            DomovoiMood.Annoyed => pose with { LeftArm = 18, RightArm = -18, Head = -5 },
+            _ => pose
+        };
     }
 
     private static (float X, float Y, float Angle) JointFor(DomovoiPart part, DomovoiPose pose) => part switch
@@ -155,7 +179,7 @@ internal static class DomovoiArt
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             float scale = ScaleFor(width,height);
-            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood == DomovoiMood.Happy;
+            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood is DomovoiMood.Happy or DomovoiMood.Petting or DomovoiMood.Dance or DomovoiMood.Wave;
             g.TranslateTransform(width / 2f, height / 2f);
             g.RotateTransform((float)angle);
             g.ScaleTransform(scale * facing, scale);
@@ -231,6 +255,10 @@ internal static class DomovoiArt
                 Ellipse(216, 166, 15, 25, 0xf3eaff, sw: 0);
                 Draw("M 119 161 L 151 156 M 209 156 L 241 161", -1,
                     mood == DomovoiMood.Worried ? 0xf2b7b7 : 0xf4eaff, 5);
+            }
+            else if (mood == DomovoiMood.Annoyed)
+            {
+                Draw("M 120 176 L 151 185 M 209 185 L 240 176", -1, 0xf4eaff, 7);
             }
             else if (happy)
             {

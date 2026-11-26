@@ -12,7 +12,14 @@ internal sealed class DomovoiPet : Control
     private DomovoiSurface? _surface;
     private bool _renderFailed;
     private DomovoiGrip _grip;
-    private DomovoiPose _renderedPose;
+    private DomovoiPose _renderedPose, _pose;
+    private bool _poseReady;
+    private DomovoiMood _actionMood = DomovoiMood.Idle;
+    private double _actionRemaining, _actionElapsed, _nextIdleAction = 7, _walkElapsed;
+    private double _pressTime, _strokeDistance, _lastStrokeTime, _lastClickTime = -10;
+    private int _rapidClicks, _strokeTurns, _strokeDirection;
+    private Point _pressPoint, _strokePoint;
+    private bool _pressMoved, _strokeReady;
     private double _renderedAngle;
     private int _renderedFacing = 1;
     private double _mouseX, _mouseY, _mouseVx, _mouseVy, _ax, _ay;
@@ -68,6 +75,12 @@ internal sealed class DomovoiPet : Control
         };
         _menu.Items.Add(physics);
         _menu.Items.Add(wander);
+        var actions = new ToolStripMenuItem(T("Действия домового"));
+        actions.DropDownItems.Add(T("Помахать рукой"), null, (_, _) => StartAction(DomovoiMood.Wave, 2.8));
+        actions.DropDownItems.Add(T("Потанцевать"), null, (_, _) => StartAction(DomovoiMood.Dance, 4.5));
+        actions.DropDownItems.Add(T("Потянуться"), null, (_, _) => StartAction(DomovoiMood.Stretch, 2.4));
+        actions.DropDownItems.Add(T("Поспать"), null, (_, _) => StartAction(DomovoiMood.Sleepy, 10));
+        _menu.Items.Add(actions);
         _menu.Items.Add(T("Скрыть домового"), null, (_, _) => HideRequested?.Invoke(this, EventArgs.Empty));
         ContextMenuStrip = _menu;
         RefreshPose();
@@ -82,7 +95,7 @@ internal sealed class DomovoiPet : Control
     private static double Wrap(double angle) => Math.IEEERemainder(angle, 360);
     private DomovoiMood Mood => _dragging ? DomovoiMood.Held :
         _dizzy > 0 ? DomovoiMood.Dizzy : _happy > 0 ? DomovoiMood.Happy :
-        _walking ? DomovoiMood.Walking : _idle >= 48 ? DomovoiMood.Sleepy :
+        _actionRemaining > 0 ? _actionMood : _walking ? DomovoiMood.Walking : _idle >= 48 ? DomovoiMood.Sleepy :
         _lowBattery ? DomovoiMood.Worried : DomovoiMood.Idle;
 
     private void RefreshPose()
@@ -95,7 +108,7 @@ internal sealed class DomovoiPet : Control
                 _surface?.Dispose();
                 _surface = new DomovoiSurface(Width, Height);
             }
-            var pose = DomovoiArt.Pose(_time, _limbSwing, Mood);
+            var pose = _poseReady ? _pose : DomovoiArt.ActionPose(_time, _limbSwing, Mood, _actionElapsed);
             if (_dragging) PositionAtGrip(pose);
             var g = _surface.Graphics;
             g.Clear(Color.Transparent);
@@ -172,6 +185,7 @@ internal sealed class DomovoiPet : Control
             FinishDrag();
             StopWalk();
             ClearRotation();
+            _actionRemaining = 0; _poseReady = false;
             _animation.Stop();
         }
     }
@@ -196,6 +210,15 @@ internal sealed class DomovoiPet : Control
     {
         _idle = 0;
         _nextWalk = 12;
+        _nextIdleAction = 7;
+    }
+
+    private void StartAction(DomovoiMood mood, double seconds)
+    {
+        if (_dragging || _disposed) return;
+        StopWalk(); Wake();
+        _happy = _dizzy = 0;
+        _actionMood = mood; _actionRemaining = seconds; _actionElapsed = 0;
     }
 
     private void ClearRotation()
@@ -216,6 +239,7 @@ internal sealed class DomovoiPet : Control
     {
         StopWalk();
         ClearRotation();
+        _actionRemaining = 0;
         Wake();
         _relativeX = DomovoiPreferences.DefaultX;
         _relativeY = DomovoiPreferences.DefaultY;
@@ -227,6 +251,7 @@ internal sealed class DomovoiPet : Control
     private void FinishDrag()
     {
         if (!_dragging) return;
+        bool tap = !_pressMoved && _time - _pressTime < .24;
         _dragging = false;
         Capture = false;
         _angle = Wrap(_angle);
@@ -237,6 +262,13 @@ internal sealed class DomovoiPet : Control
         MoveTo(Left, Top);
         SavePosition();
         Wake();
+        if (tap && !_disposed && Visible)
+        {
+            _rapidClicks = _time - _lastClickTime < .85 ? _rapidClicks + 1 : 1;
+            _lastClickTime = _time;
+            if (_rapidClicks >= 3) StartAction(DomovoiMood.Annoyed, 2.2);
+            else if (_rapidClicks == 1) StartAction(DomovoiMood.Wave, 1.8);
+        }
         if (!_disposed) RefreshPose();
     }
 
@@ -248,6 +280,15 @@ internal sealed class DomovoiPet : Control
         if (_disposed || !Visible || Parent == null || FindForm()?.WindowState == FormWindowState.Minimized)
             return;
         _time += dt;
+        if (_actionRemaining > 0)
+        {
+            _actionRemaining = Math.Max(0, _actionRemaining - dt);
+            _actionElapsed += dt;
+        }
+        if (_strokeReady && _time - _lastStrokeTime > .55)
+        {
+            _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
+        }
         _happy = Math.Max(0, _happy - dt);
         _dizzy = Math.Max(0, _dizzy - dt);
         if (!_dragging && !_hover && !_menu.Visible) _idle += dt;
@@ -258,7 +299,7 @@ internal sealed class DomovoiPet : Control
             {
                 double vx = (cursor.X - _mouseX) / dt / DpiScale;
                 double vy = (cursor.Y - _mouseY) / dt / DpiScale;
-                double filter = 1 - Math.Exp(-18 * dt);
+                double filter = 1 - Math.Exp(-12 * dt);
                 double oldVx = _mouseVx, oldVy = _mouseVy;
                 _mouseVx += (Math.Clamp(vx,-3000,3000) - _mouseVx) * filter;
                 _mouseVy += (Math.Clamp(vy,-3000,3000) - _mouseVy) * filter;
@@ -266,21 +307,22 @@ internal sealed class DomovoiPet : Control
                 _ay += (Math.Clamp((_mouseVy-oldVy)/dt,-9000,9000) - _ay) * filter;
             }
             _mouseX = cursor.X; _mouseY = cursor.Y;
+            if (Math.Abs(cursor.X - _pressPoint.X) + Math.Abs(cursor.Y - _pressPoint.Y) > 5 * DpiScale) _pressMoved = true;
         }
         if (_physics)
         {
-            var pose = DomovoiArt.Pose(_time,_limbSwing,Mood);
+            var pose = _poseReady ? _pose : DomovoiArt.ActionPose(_time,_limbSwing,Mood,_actionElapsed);
             double target = _dragging ? DomovoiArt.HangingAngle(_grip, pose, _facing, -_ax, 2100-_ay) : 0;
             int count = Math.Max(1, (int)Math.Ceiling(dt / .006));
             double step = dt / count;
             for (int i = 0; i < count; i++)
             {
                 double error = Wrap(target - _angle);
-                _angularVelocity += (68 * error - 10.5 * _angularVelocity) * step;
+                _angularVelocity += (55 * error - 11.5 * _angularVelocity) * step;
                 _angularVelocity = Math.Clamp(_angularVelocity, -1000, 1000);
                 _angle = Wrap(_angle + _angularVelocity * step);
                 double limbTarget = _dragging ? Math.Clamp(-_angularVelocity * .075, -36, 36) : 0;
-                _limbVelocity += (92 * (limbTarget - _limbSwing) - 12 * _limbVelocity) * step;
+                _limbVelocity += (75 * (limbTarget - _limbSwing) - 12 * _limbVelocity) * step;
                 _limbSwing += _limbVelocity * step;
             }
             if (!_dragging && Math.Abs(_angle) < .12 && Math.Abs(_angularVelocity) < .5)
@@ -293,25 +335,45 @@ internal sealed class DomovoiPet : Control
             else
             {
                 _walkRemaining -= dt;
-                double stepX = _x + _walkDirection * 44 * DpiScale * dt;
+                _walkElapsed += dt;
+                double ramp = Math.Clamp(Math.Min(_walkElapsed, _walkRemaining) / .25, 0, 1);
+                double stepX = _x + _walkDirection * 44 * DpiScale * dt * ramp;
                 MoveTo(stepX, _y);
                 if (stepX <= 0 || stepX >= MaxX || _walkRemaining <= 0)
                     StopWalk();
             }
         }
         else if (_wander && !_dragging && !_hover && !_menu.Visible &&
-            _idle >= _nextWalk && _idle < 48 && _happy <= 0 && _dizzy <= 0 && MaxX > 20)
+            _idle >= _nextWalk && _idle < 48 && _happy <= 0 && _dizzy <= 0 && _actionRemaining <= 0 && MaxX > 20)
         {
             _walkDirection = _x > MaxX / 2d ? -1 : 1;
             _facing = _walkDirection;
             _walkRemaining = 2.2;
+            _walkElapsed = 0;
             _walking = true;
             _nextWalk = _idle + 17;
         }
 
+        if (_wander && !_dragging && !_walking && !_hover && !_menu.Visible &&
+            _actionRemaining <= 0 && _happy <= 0 && _dizzy <= 0 && _idle >= _nextIdleAction && _idle < 45)
+        {
+            _actionMood = Random.Shared.Next(3) switch
+            {
+                0 => DomovoiMood.Stretch, 1 => DomovoiMood.Wave, _ => DomovoiMood.Dance
+            };
+            _actionRemaining = _actionMood == DomovoiMood.Dance ? 3.2 : 2.4;
+            _actionElapsed = 0;
+            _nextIdleAction = _idle + 15 + Random.Shared.NextDouble() * 5;
+        }
+        var desired = DomovoiArt.ActionPose(_time,_limbSwing,Mood,_actionElapsed);
+        _pose = _poseReady ? DomovoiArt.Blend(_pose,desired,dt) : desired;
+        _poseReady = true;
         _paintElapsed += dt;
-        double cadence = _dragging || _walking || Math.Abs(_angularVelocity) > 2 || Math.Abs(_angle) > .3 ? .014 : .050;
-        if (_paintElapsed >= cadence || Mood != _lastMood)
+        bool active = _dragging || _walking || _actionRemaining > 0 || _happy > 0 || _dizzy > 0 ||
+            Math.Abs(_angularVelocity) > 2 || Math.Abs(_angle) > .3;
+        // Present every active timer tick, rather than skipping a tick
+        // when the actual timer interval is just under a threshold.
+        if (active || _paintElapsed >= .032 || Mood != _lastMood)
         {
             _paintElapsed = 0;
             RefreshPose();
@@ -322,14 +384,14 @@ internal sealed class DomovoiPet : Control
     {
         base.OnMouseEnter(e);
         _hover = true;
-        StopWalk();
-        Wake();
+        if (!_dragging) { StopWalk(); Wake(); }
     }
 
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
         _hover = false;
+        _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
@@ -338,12 +400,15 @@ internal sealed class DomovoiPet : Control
         if (e.Button != MouseButtons.Left || Parent == null) return;
         StopWalk();
         Wake();
-        _dizzy = _happy = 0;
+        _dizzy = _happy = _actionRemaining = 0;
+        _pose = _renderedPose; _poseReady = true;
         _grip = DomovoiArt.Grab(e.Location, Width, Height, _renderedAngle, _renderedFacing, _renderedPose);
         _facing = _renderedFacing;
         _angle = _renderedAngle;
         var cursor = Parent.PointToClient(MousePosition);
         _mouseX = cursor.X; _mouseY = cursor.Y;
+        _pressPoint = cursor; _pressTime = _time; _pressMoved = false;
+        _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
         _mouseVx = _mouseVy = _ax = _ay = 0;
         _dragging = true;
         Capture = true;
@@ -353,7 +418,47 @@ internal sealed class DomovoiPet : Control
 
     // Mouse events do not paint. One timer samples the latest position,
     // advances the spring and presents the whole pose together.
-    protected override void OnMouseMove(MouseEventArgs e) => base.OnMouseMove(e);
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (_dragging)
+        {
+            if (Parent != null)
+            {
+                var point = Parent.PointToClient(MousePosition);
+                if (Math.Abs(point.X - _pressPoint.X) + Math.Abs(point.Y - _pressPoint.Y) > 5 * DpiScale)
+                    _pressMoved = true;
+            }
+            return;
+        }
+        if (e.Button != MouseButtons.None || _menu.Visible) return;
+        var grip = DomovoiArt.Grab(e.Location, Width, Height, _renderedAngle, _renderedFacing, _renderedPose);
+        if (grip.Part != DomovoiPart.Head)
+        {
+            _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
+            return;
+        }
+        var screen = MousePosition;
+        if (_strokeReady && _time - _lastStrokeTime < .55)
+        {
+            int dx = screen.X - _strokePoint.X;
+            if (Math.Abs(dx) >= 2 * DpiScale)
+            {
+                int direction = Math.Sign(dx);
+                if (_strokeDirection != 0 && direction != _strokeDirection) _strokeTurns++;
+                _strokeDirection = direction;
+                _strokeDistance += Math.Abs(dx);
+                _strokePoint = screen;
+                if (_strokeTurns >= 2 && _strokeDistance >= 35 * DpiScale)
+                {
+                    StartAction(DomovoiMood.Petting, 2.7);
+                    _strokeDistance = 0; _strokeTurns = 0;
+                }
+            }
+        }
+        else { _strokePoint = screen; _strokeReady = true; }
+        _lastStrokeTime = _time;
+    }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
@@ -366,7 +471,7 @@ internal sealed class DomovoiPet : Control
         base.OnMouseDoubleClick(e);
         if (e.Button != MouseButtons.Left) return;
         FinishDrag();
-        _dizzy = 0; _happy = 2.2; Wake();
+        _dizzy = 0; _actionRemaining = 0; _happy = 2.2; Wake();
         RefreshPose();
     }
 
