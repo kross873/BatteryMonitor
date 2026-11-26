@@ -144,6 +144,27 @@ internal sealed class SettingsWindow : Form
         _devices = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0,0,0,8), BackColor = Canvas, Padding = new Padding(0,0,2,0) };
         _devices.SizeChanged += (_, _) => ResizeDeviceCards();
         layout.Controls.Add(_devices, 0, 1);
+        // Explicit perch action only; no autonomous obstruction of cards.
+        // Resolve on each frame so a scrolled/recreated card is not retained.
+        _domovoi.FindPerch = () =>
+        {
+            if (!layout.Visible || !_devices.Visible || !_devices.IsHandleCreated || !pages.IsHandleCreated) return null;
+            var viewport = pages.RectangleToClient(_devices.RectangleToScreen(_devices.ClientRectangle));
+            foreach (Control card in _devices.Controls)
+            {
+                if (!card.Visible || !card.IsHandleCreated) continue;
+                var bounds = pages.RectangleToClient(card.RectangleToScreen(card.ClientRectangle));
+                if (!viewport.Contains(bounds) || bounds.Width < 60) continue;
+                float scale = DomovoiArt.ScaleFor(_domovoi.Width, _domovoi.Height);
+                int foot = (int)Math.Round(_domovoi.Height / 2d + (410 - 215 + 15) * scale);
+                int edge = bounds.Top >= foot ? bounds.Top : bounds.Bottom;
+                int x = bounds.Right - _domovoi.Width / 2 - 42;
+                int y = edge - foot;
+                if (y < 0 || y + _domovoi.Height > pages.ClientSize.Height) continue;
+                return new Point(Math.Clamp(x, 0, Math.Max(0,pages.ClientSize.Width - _domovoi.Width)), y);
+            }
+            return null;
+        };
 
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
         _refresh = MakeButton(T("↻  Обновить сейчас"), 185);

@@ -5,11 +5,11 @@ namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
-internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed }
+internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched }
 
-internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot }
+internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot, Hat, Beard }
 internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
-internal readonly record struct DomovoiPose(float Bob, float LeftArm, float RightArm, float LeftLeg, float RightLeg, float Head);
+internal readonly record struct DomovoiPose(float Bob, float LeftArm, float RightArm, float LeftLeg, float RightLeg, float Head, float Hat = 0, float Beard = 0);
 
 internal static class DomovoiArt
 {
@@ -83,7 +83,7 @@ internal static class DomovoiArt
         float t = (float)(1 - Math.Exp(-15 * Math.Max(0, dt)));
         float L(float x, float y) => x + (y - x) * t;
         return new(L(a.Bob,b.Bob), L(a.LeftArm,b.LeftArm), L(a.RightArm,b.RightArm),
-            L(a.LeftLeg,b.LeftLeg), L(a.RightLeg,b.RightLeg), L(a.Head,b.Head));
+            L(a.LeftLeg,b.LeftLeg), L(a.RightLeg,b.RightLeg), L(a.Head,b.Head), L(a.Hat,b.Hat), L(a.Beard,b.Beard));
     }
 
     internal static DomovoiPose ActionPose(double time, double swing, DomovoiMood mood, double actionTime)
@@ -98,6 +98,9 @@ internal static class DomovoiArt
             DomovoiMood.Stretch => pose with { LeftArm = 110, RightArm = -110, Head = -7, Bob = -6 },
             DomovoiMood.Petting => pose with { Head = w * 3, Bob = 2, LeftArm = 12, RightArm = -12 },
             DomovoiMood.Annoyed => pose with { LeftArm = 18, RightArm = -18, Head = -5 },
+            DomovoiMood.Sitting or DomovoiMood.Perched => pose with { Bob = 15, LeftLeg = 65, RightLeg = -65, LeftArm = -10, RightArm = 10, Head = 3 },
+            DomovoiMood.Tea => pose with { Bob = 12, LeftLeg = 50, RightLeg = -50, LeftArm = -9, RightArm = -42 - 25 * (float)(.5 + .5 * Math.Sin(actionTime * 2.1)), Head = 6 },
+            DomovoiMood.Coding => pose with { Bob = 14, LeftLeg = 52, RightLeg = -52, LeftArm = -23 + w * 4, RightArm = 23 + w * 4, Head = 7 + w * 1.3f },
             _ => pose
         };
     }
@@ -125,7 +128,20 @@ internal static class DomovoiArt
         return new(q.X + joint.X, q.Y + joint.Y);
     }
 
-    internal static PointF ModelPoint(DomovoiGrip grip, DomovoiPose pose) => JointPoint(grip.Point, grip.Part, pose, false);
+    private static PointF SecondaryPoint(PointF p, DomovoiPart part, DomovoiPose pose, bool inverse)
+    {
+        float y = part == DomovoiPart.Hat ? 145 : 176;
+        double angle = part == DomovoiPart.Hat ? pose.Hat : pose.Beard;
+        var q = Rotate(new PointF(p.X - 180, p.Y - y), inverse ? -angle : angle);
+        return new(q.X + 180, q.Y + y);
+    }
+
+    internal static PointF ModelPoint(DomovoiGrip grip, DomovoiPose pose)
+    {
+        if (grip.Part is DomovoiPart.Hat or DomovoiPart.Beard)
+            return JointPoint(SecondaryPoint(grip.Point, grip.Part, pose, false), DomovoiPart.Head, pose, false);
+        return JointPoint(grip.Point, grip.Part, pose, false);
+    }
 
     // Convert an actual painted pixel to the matching local bone coordinates.
     // Both hit testing and rendering use the same transform and draw order.
@@ -141,7 +157,11 @@ internal static class DomovoiArt
         }
         bool V(string d, PointF p) => Cached(d).IsVisible(p);
         var h = JointPoint(model, DomovoiPart.Head, pose, true);
-        if (V(Hair,h) || V(Face,h) || V(Hat,h) || V(Brim,h)) return new(DomovoiPart.Head,h);
+        var hat = SecondaryPoint(h, DomovoiPart.Hat, pose, true);
+        if (V(Hat,hat) || V(Brim,hat)) return new(DomovoiPart.Hat,hat);
+        if (V(Face,h)) return new(DomovoiPart.Head,h);
+        var beard = SecondaryPoint(h, DomovoiPart.Beard, pose, true);
+        if (V(Hair,beard)) return new(DomovoiPart.Beard,beard);
         var right = JointPoint(model, DomovoiPart.RightHand, pose, true);
         if (V(RightArm,right) || E(right,277,359,60,40)) return new(DomovoiPart.RightHand,right);
         var left = JointPoint(model, DomovoiPart.LeftHand, pose, true);
@@ -171,7 +191,7 @@ internal static class DomovoiArt
         return (Math.Atan2(ay, ax) - Math.Atan2(dy, dx)) * 180 / Math.PI;
     }
 
-    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing)
+    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing, float lookX = 0, float lookY = 0)
     {
         var state = g.Save();
         try
@@ -214,6 +234,9 @@ internal static class DomovoiArt
                 Ellipse(194, 405, 39, 19, 0x373043, sw: 4);
             });
             Draw(Coat, 0x555368);
+            Draw("M 87 278 Q 106 304 102 379 L 71 398 60 398 Z", 0x484559, sw: 0);
+            Draw("M 272 275 Q 246 300 254 367 L 285 396 303 396 Z", 0x666379, sw: 0);
+            Draw("M 110 298 L 121 348 M 248 298 L 240 348", -1, 0x777287, 3);
             Draw("M 145 253 L 180 298 215 253 M 180 298 L 180 383", -1, 0x918ca8, 4);
             Joint(92, 283, pose.LeftArm, () => {
                 Draw(LeftArm, 0x66647c);
@@ -222,23 +245,47 @@ internal static class DomovoiArt
             Joint(268, 283, pose.RightArm, () => {
                 Draw(RightArm, 0x66647c);
                 Ellipse(277, 359, 60, 40, 0xc3bac8, sw: 5);
+                if (mood == DomovoiMood.Tea)
+                {
+                    Draw("M 281 333 L 326 333 322 368 Q 303 380 285 368 Z", 0xa98bc8, sw: 4);
+                    Draw("M 326 340 Q 347 333 345 352 Q 343 364 324 359", -1, 0xd8bce9, 5);
+                    Ellipse(281, 326, 45, 14, 0x674a42, 0xdbc1e9, 3);
+                }
             });
+            if (mood == DomovoiMood.Coding)
+            {
+                Draw("M 103 320 L 257 320 246 382 114 382 Z", 0x242033, sw: 5);
+                Draw("M 111 328 L 249 328 240 374 121 374 Z", 0x574877, sw: 0);
+                Draw("M 114 382 L 246 382 271 393 90 393 Z", 0x77718c, sw: 3);
+                Draw("M 159 340 L 146 351 159 362 M 201 340 L 214 351 201 362 M 188 337 L 173 365", -1, 0xb8f0e4, 4);
+            }
 
             // A separate head joint follows the body with a little lag.
             var head = g.Save();
             g.TranslateTransform(180, 255);
             g.RotateTransform(pose.Head);
             g.TranslateTransform(-180, -255);
-            Draw(Hair, 0xa6a9bd);
+            Joint(180, 176, pose.Beard, () => {
+                Draw(Hair, 0xa6a9bd);
+                Draw("M 91 222 Q 120 264 158 257 M 220 260 Q 255 247 270 218", -1, 0xc9c9d7, 4);
+            });
             Draw(Face, 0x23232e);
+            var hatState = g.Save();
+            g.TranslateTransform(180, 145);
+            g.RotateTransform(pose.Hat);
+            g.TranslateTransform(-180, -145);
             Draw(Hat, 0x464456);
             Draw("M 83 110 Q 100 49 174 29 Q 202 24 219 35 Q 165 49 137 106 Z", 0x5b596e, sw: 0);
             Draw("M 228 38 L 258 30 273 59 242 67 Z", 0x716d82, sw: 3);
             Draw("M 238 43 L 245 64 M 251 38 L 258 60", -1, 0xb6b1c1, 2);
             Draw(Brim, 0x646278);
+            Draw("M 73 148 Q 121 123 173 126 Q 241 122 287 144", -1, 0x858099, 3);
+            g.Restore(hatState);
             Draw("M 85 165 Q 112 156 141 162 Q 126 183 92 191 Z M 219 162 Q 254 153 278 165 L 273 192 Q 241 180 219 162 Z", 0xc3c4d4, sw: 0);
             Draw("M 179 205 Q 151 181 119 201 Q 104 215 91 211 Q 119 243 165 220 Q 175 216 179 205 Q 193 225 215 228 Q 245 232 266 211 Q 251 217 238 204 Q 209 182 179 205 Z", 0xd4d4df, sw: 4);
-            Draw("M 113 233 Q 128 252 144 250 M 213 251 Q 230 249 242 237 M 169 245 Q 176 259 185 263", -1, 0x77788d, 3);
+            Joint(180, 176, pose.Beard, () => Draw("M 113 233 Q 128 252 144 250 M 213 251 Q 230 249 242 237 M 169 245 Q 176 259 185 263", -1, 0x77788d, 3));
+            var eyeState = g.Save();
+            g.TranslateTransform(lookX, lookY);
 
             bool blink = time % 4.4 > 4.22;
             if (sleepy || blink)
@@ -264,8 +311,14 @@ internal static class DomovoiArt
             {
                 Draw("M 118 187 Q 137 160 156 187 M 204 187 Q 224 160 243 187", -1, 0xfff4ff, 8);
             }
+            else if (Math.Abs(lookX) + Math.Abs(lookY) > 1.0f)
+            {
+                Ellipse(128, 172, 17, 17, 0xf4eaff, sw: 0);
+                Ellipse(215, 172, 17, 17, 0xf4eaff, sw: 0);
+            }
             else
                 Draw("M 120 185 Q 137 167 153 185 M 207 185 Q 224 167 240 185", -1, 0xf4eaff, 6);
+            g.Restore(eyeState);
             g.Restore(head);
         }
         finally { g.Restore(state); }

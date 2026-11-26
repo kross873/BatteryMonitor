@@ -12,7 +12,11 @@ internal sealed class DomovoiPet : Control
     private DomovoiSurface? _surface;
     private bool _renderFailed;
     private DomovoiGrip _grip;
-    private DomovoiPose _renderedPose, _pose;
+    private DomovoiPose _renderedPose, _pose, _basePose;
+    private readonly DomovoiRig _rig = new();
+    private float _lookX, _lookY;
+    private Point? _perchTarget;
+    internal Func<Point?>? FindPerch { get; set; }
     private bool _poseReady;
     private DomovoiMood _actionMood = DomovoiMood.Idle;
     private double _actionRemaining, _actionElapsed, _nextIdleAction = 7, _walkElapsed;
@@ -80,6 +84,21 @@ internal sealed class DomovoiPet : Control
         actions.DropDownItems.Add(T("Потанцевать"), null, (_, _) => StartAction(DomovoiMood.Dance, 4.5));
         actions.DropDownItems.Add(T("Потянуться"), null, (_, _) => StartAction(DomovoiMood.Stretch, 2.4));
         actions.DropDownItems.Add(T("Поспать"), null, (_, _) => StartAction(DomovoiMood.Sleepy, 10));
+        actions.DropDownItems.Add(T("Сесть отдохнуть"), null, (_, _) => StartAction(DomovoiMood.Sitting, 7));
+        actions.DropDownItems.Add(T("Выпить чай"), null, (_, _) => StartAction(DomovoiMood.Tea, 6));
+        actions.DropDownItems.Add(T("Попрограммировать"), null, (_, _) => StartAction(DomovoiMood.Coding, 8));
+        var perch = new ToolStripMenuItem(T("Сесть на карточку"));
+        perch.Click += (_, _) =>
+        {
+            var target = FindPerch?.Invoke();
+            if (target.HasValue)
+            {
+                StartAction(DomovoiMood.Perched, 9);
+                _perchTarget = target;
+            }
+        };
+        actions.DropDownItems.Add(perch);
+        actions.DropDownOpening += (_, _) => perch.Enabled = FindPerch?.Invoke() != null;
         _menu.Items.Add(actions);
         _menu.Items.Add(T("Скрыть домового"), null, (_, _) => HideRequested?.Invoke(this, EventArgs.Empty));
         ContextMenuStrip = _menu;
@@ -112,7 +131,7 @@ internal sealed class DomovoiPet : Control
             if (_dragging) PositionAtGrip(pose);
             var g = _surface.Graphics;
             g.Clear(Color.Transparent);
-            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing);
+            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY);
             _surface.Present(Handle);
             _renderedPose = pose; _renderedAngle = _angle; _renderedFacing = _facing;
             _lastMood = Mood;
@@ -185,7 +204,7 @@ internal sealed class DomovoiPet : Control
             FinishDrag();
             StopWalk();
             ClearRotation();
-            _actionRemaining = 0; _poseReady = false;
+            _actionRemaining = 0; _poseReady = false; _perchTarget = null;
             _animation.Stop();
         }
     }
@@ -218,6 +237,7 @@ internal sealed class DomovoiPet : Control
         if (_dragging || _disposed) return;
         StopWalk(); Wake();
         _happy = _dizzy = 0;
+        _perchTarget = null;
         _actionMood = mood; _actionRemaining = seconds; _actionElapsed = 0;
     }
 
@@ -225,6 +245,7 @@ internal sealed class DomovoiPet : Control
     {
         _angle = _angularVelocity = _limbSwing = _limbVelocity = 0;
         _mouseVx = _mouseVy = _ax = _ay = 0;
+        _rig.Reset();
     }
 
     private void StopWalk()
@@ -239,7 +260,7 @@ internal sealed class DomovoiPet : Control
     {
         StopWalk();
         ClearRotation();
-        _actionRemaining = 0;
+        _actionRemaining = 0; _perchTarget = null;
         Wake();
         _relativeX = DomovoiPreferences.DefaultX;
         _relativeY = DomovoiPreferences.DefaultY;
@@ -284,6 +305,22 @@ internal sealed class DomovoiPet : Control
         {
             _actionRemaining = Math.Max(0, _actionRemaining - dt);
             _actionElapsed += dt;
+        }
+        if (_perchTarget.HasValue)
+        {
+            var current = FindPerch?.Invoke();
+            if (_dragging || _actionRemaining <= 0 || !current.HasValue)
+            {
+                _perchTarget = null;
+                if (_actionMood == DomovoiMood.Perched) _actionRemaining = 0;
+                SavePosition();
+            }
+            else
+            {
+                _perchTarget = current;
+                double ease = 1 - Math.Exp(-7 * dt);
+                MoveTo(_x + (current.Value.X - _x) * ease, _y + (current.Value.Y - _y) * ease);
+            }
         }
         if (_strokeReady && _time - _lastStrokeTime > .55)
         {
@@ -357,17 +394,21 @@ internal sealed class DomovoiPet : Control
         if (_wander && !_dragging && !_walking && !_hover && !_menu.Visible &&
             _actionRemaining <= 0 && _happy <= 0 && _dizzy <= 0 && _idle >= _nextIdleAction && _idle < 45)
         {
-            _actionMood = Random.Shared.Next(3) switch
+            _actionMood = Random.Shared.Next(6) switch
             {
-                0 => DomovoiMood.Stretch, 1 => DomovoiMood.Wave, _ => DomovoiMood.Dance
+                0 => DomovoiMood.Stretch, 1 => DomovoiMood.Wave, 2 => DomovoiMood.Dance,
+                3 => DomovoiMood.Sitting, 4 => DomovoiMood.Tea, _ => DomovoiMood.Coding
             };
-            _actionRemaining = _actionMood == DomovoiMood.Dance ? 3.2 : 2.4;
+            _actionRemaining = _actionMood is DomovoiMood.Tea or DomovoiMood.Coding or DomovoiMood.Sitting ? 5.5 :
+                _actionMood == DomovoiMood.Dance ? 3.2 : 2.4;
             _actionElapsed = 0;
             _nextIdleAction = _idle + 15 + Random.Shared.NextDouble() * 5;
         }
         var desired = DomovoiArt.ActionPose(_time,_limbSwing,Mood,_actionElapsed);
-        _pose = _poseReady ? DomovoiArt.Blend(_pose,desired,dt) : desired;
+        _basePose = _poseReady ? DomovoiArt.Blend(_basePose,desired,dt) : desired;
+        _pose = _rig.Apply(_basePose, dt, _dragging, _physics, _grip.Part, _angle, _angularVelocity, _ax, _facing);
         _poseReady = true;
+        UpdateGaze(dt);
         _paintElapsed += dt;
         bool active = _dragging || _walking || _actionRemaining > 0 || _happy > 0 || _dizzy > 0 ||
             Math.Abs(_angularVelocity) > 2 || Math.Abs(_angle) > .3;
@@ -378,6 +419,35 @@ internal sealed class DomovoiPet : Control
             _paintElapsed = 0;
             RefreshPose();
         }
+    }
+
+    private void UpdateGaze(double dt)
+    {
+        float goalX = 0, goalY = 0;
+        if (!_dragging && Parent != null && Mood is DomovoiMood.Idle or DomovoiMood.Walking or DomovoiMood.Sitting or DomovoiMood.Perched)
+        {
+            var cursor = Parent.PointToClient(MousePosition);
+            if (Parent.ClientRectangle.Contains(cursor))
+            {
+                var eye = DomovoiArt.Offset(new DomovoiGrip(DomovoiPart.Head, new PointF(180,182)),
+                    _pose, Width, Height, _angle, _facing);
+                var delta = new PointF((float)(cursor.X - _x - Width / 2d - eye.X),
+                    (float)(cursor.Y - _y - Height / 2d - eye.Y));
+                var local = DomovoiArt.Rotate(delta, -_angle);
+                local.X *= _facing;
+                local = DomovoiArt.Rotate(local, -_pose.Head);
+                double distance = Math.Sqrt(local.X * local.X + local.Y * local.Y);
+                if (distance > 1)
+                {
+                    float strength = (float)Math.Clamp(distance / (45 * DpiScale), 0, 1);
+                    goalX = (float)(local.X / distance * 10) * strength;
+                    goalY = (float)(local.Y / distance * 7) * strength;
+                }
+            }
+        }
+        float t = (float)(1 - Math.Exp(-9 * dt));
+        _lookX += (goalX - _lookX) * t;
+        _lookY += (goalY - _lookY) * t;
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -401,7 +471,9 @@ internal sealed class DomovoiPet : Control
         StopWalk();
         Wake();
         _dizzy = _happy = _actionRemaining = 0;
-        _pose = _renderedPose; _poseReady = true;
+        _perchTarget = null;
+        _rig.Reset();
+        _basePose = _pose = _renderedPose; _poseReady = true;
         _grip = DomovoiArt.Grab(e.Location, Width, Height, _renderedAngle, _renderedFacing, _renderedPose);
         _facing = _renderedFacing;
         _angle = _renderedAngle;
@@ -433,7 +505,7 @@ internal sealed class DomovoiPet : Control
         }
         if (e.Button != MouseButtons.None || _menu.Visible) return;
         var grip = DomovoiArt.Grab(e.Location, Width, Height, _renderedAngle, _renderedFacing, _renderedPose);
-        if (grip.Part != DomovoiPart.Head)
+        if (grip.Part is not (DomovoiPart.Head or DomovoiPart.Hat or DomovoiPart.Beard))
         {
             _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
             return;
