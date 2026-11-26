@@ -47,7 +47,9 @@ try
         var exeVersion = System.Reflection.AssemblyName.GetAssemblyName(Path.Combine(root, "publish", "BatteryMonitor.dll")).Version;
         if (exeVersion?.ToString(3) != version) throw new InvalidDataException("Published application version does not match project version. Rebuild the installer.");
         var setupVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(setup);
-        if (setupVersion.FileVersion != version + ".0") throw new InvalidDataException("Installer version does not match project version. Rebuild with the current .iss file.");
+        var expected = Version.Parse(version + ".0");
+        var actual = new Version(setupVersion.FileMajorPart, setupVersion.FileMinorPart, setupVersion.FileBuildPart, setupVersion.FilePrivatePart);
+        if (actual != expected) throw new InvalidDataException($"Installer version {actual} does not match project version {expected}. Rebuild with the current .iss file.");
         using var rsa = RSA.Create(); rsa.ImportFromPem(File.ReadAllText(KeyPath(config.Repository)));
         if (rsa.ExportSubjectPublicKeyInfoPem() != config.PublicKey) throw new CryptographicException("Wrong signing key.");
         using var file = File.OpenRead(setup);
