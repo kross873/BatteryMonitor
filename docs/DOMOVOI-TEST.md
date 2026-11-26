@@ -1,25 +1,21 @@
-# Interactive Domovoi — prototype
+# Interactive Domovoi — character animation revision
 
-This is a cosmetic mascot inside the settings window, shared across the four existing content tabs. It does not modify the taskbar widget, scanner, update protocol or installer. It is enabled by default for this prototype. Right-click the mascot to hide/reset it or toggle physics; the Appearance checkbox previews visibility immediately. Use Apply to save visibility. Position is saved locally when movement settles (or on release if physics is off) and restored proportionally when the content area resizes.
+The mascot lives in the four content pages. It has no network calls or battery polling of its own. The production installer, update manifest and version remain unchanged.
 
-## Windows smoke test (not executed here)
+## Behavior
 
-1. On Windows x64 with the .NET 8 SDK, run build-windows.cmd in this branch. Start the portable output, without replacing your existing installed build.
-2. Open Settings; check the character's initial position and drag it to all four edges. Release the mouse outside the window; it should remain within the content area.
-3. Navigate through Devices, Appearance, Updates and Compatibility; the mascot should remain at the same position and not reset on a device refresh.
-4. Resize the window and test 100% and 150% display scaling; the mascot should remain within bounds. Check light/dark themes and RU/UK/EN.
-5. Right-click to reset, then hide; verify controls previously under the mascot are reachable. Re-enable it in Appearance and press Apply. Close and reopen; verify visibility and position persistence.
-6. Verify normal device refresh, compatibility links, appearance controls, update display and tray widget still work. If any connected device reports 0–20%, check the mascot's worried eyebrows. Unknown readings should not trigger the expression.
-7. Run test-updates.cmd if available in this checkout. No production installer or update manifest is changed by this branch.
+- Drag the mascot, then release it anywhere. It stays there; no gravity or bouncing across the app.
+- With physics enabled (default), fast mouse movement tilts the character; continuous circular gestures spin it. Angular and limb springs settle after release. The hat, beard and face are preserved from the series model; hands and feet have separate joint motion.
+- A short horizontal walk occurs after around 12 seconds without mascot interaction, then occasionally until sleep. Hovering, clicking or opening the mascot menu pauses the walk. About 48 seconds of no mascot interaction gives a sleepy expression. Double-click for a happy expression; rapid rotation and release can give dizzy eyes; connected low battery gives worried eyes.
+- Right-click to toggle pose physics or autonomous walking independently, hide or reset. Position is saved when released and when a walk ends. Apply saves visibility. Preferences are local.
+- Alpha-derived hit regions follow each pose. Old and new rectangles are invalidated including underlying child controls, to prevent ghost trails. Windows visual confirmation is still required.
 
-Known limitations: series-derived vector art with simplified pose animation, no full-body idle breathing in this revision, no autonomous walking, no charge-state reaction, no keyboard dragging. Windows compilation and interaction tests remain required.
+## Windows test (not run here)
 
-## Cartoon model revision
+1. Build with build-windows.cmd on Windows .NET 8, exit the old app and run publish/BatteryMonitor.exe.
+2. Slowly drag over cards, text and buttons; no old copies should remain. Move fast left/right and then in circles; limbs should move and the body should rotate. Release at mid-window; it must stay there and settle upright.
+3. Leave the mouse off the mascot for 12–15 seconds; check short walking cycle, alternating feet and pause on hover. Wait about 48 seconds for sleepy eyes. Double-click, spin and release, and test a connected device reporting <=20%.
+4. Disable physics and walking independently in the right-click menu, verify both settings persist, then enable again. Hide/show in Appearance and Apply. Resize, switch tabs while moving, minimize, restore, test light/dark and different DPI settings.
+5. Verify device refresh, taskbar widget, compatibility and update screens are unchanged. Run test-updates.cmd.
 
-The mascot uses the same original head and body contours, palette and three eye poses as the animated series. Check that the shaped hit area, outlines and swinging feet render without clipping or excessive background seams at different DPI settings. The mascot remains within the current content area; no desktop overlay is created.
-
-## Physics and repaint revision
-
-With physics enabled (default), pick up and release the mascot to fall toward the bottom of the active content area. A quick mouse movement before release transfers momentum; walls and floor bounce with damping. Holding still for at least 100 ms before release clears throw velocity. Right-click and disable Domovoi physics to keep the mascot wherever it is dropped. The preference is stored locally. No collision with device cards or buttons is simulated.
-
-Regression test on Windows: drag slowly and quickly across dark/light cards, labels, buttons and empty space; release, let the mascot bounce and settle; toggle physics; hide and re-show it; resize; switch tabs mid-motion; minimize/restore; close/reopen. Check that old pixels disappear and the mascot stays in bounds. This uses clipped native child-window redraw of old/new bounds; actual WinForms visual testing remains required.
+Limitations: 2D articulated artwork, no simulated collision with cards/buttons, no autonomous movement outside the content pages, no charging reaction. Rendering uses shaped WinForms controls, so actual repaint performance and edge quality must be tested on Windows. No binary built here.

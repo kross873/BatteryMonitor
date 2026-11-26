@@ -45,6 +45,26 @@ internal static class DomovoiPreferences
         catch { }
     }
 
+    internal static bool LoadWander()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(Key);
+            return key?.GetValue("Wander") is not int value || value != 0;
+        }
+        catch { return true; }
+    }
+
+    internal static void SaveWander(bool enabled)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(Key);
+            key?.SetValue("Wander", enabled ? 1 : 0, RegistryValueKind.DWord);
+        }
+        catch { }
+    }
+
     internal static (int X, int Y) LoadPosition()
     {
         try
