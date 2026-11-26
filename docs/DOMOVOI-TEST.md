@@ -12,4 +12,8 @@ This is a cosmetic mascot inside the settings window, shared across the four exi
 6. Verify normal device refresh, compatibility links, appearance controls, update display and tray widget still work. If any connected device reports 0–20%, check the mascot's worried eyebrows. Unknown readings should not trigger the expression.
 7. Run test-updates.cmd if available in this checkout. No production installer or update manifest is changed by this branch.
 
-Known limitations: custom vector art rather than the final mascot sprites, simple idle animation, no autonomous walking, no charge-state reaction, no keyboard dragging. Windows compilation and interaction tests remain required.
+Known limitations: series-derived vector art with simplified pose animation, no full-body idle breathing in this revision, no autonomous walking, no charge-state reaction, no keyboard dragging. Windows compilation and interaction tests remain required.
+
+## Cartoon model revision
+
+The mascot uses the same original head and body contours, palette and three eye poses as the animated series. Check that the shaped hit area, outlines and swinging feet render without clipping or excessive background seams at different DPI settings. The mascot remains within the current content area; no desktop overlay is created.
