@@ -9,7 +9,7 @@ internal sealed class DomovoiPet : Control
 {
     private readonly System.Windows.Forms.Timer _animation = new() { Interval = 80 };
     private readonly ContextMenuStrip _menu = new();
-    private bool _dragging, _lowBattery;
+    private bool _dragging, _lowBattery, _disposed;
     private Point _grab;
     private int _frame;
     private int _relativeX, _relativeY;
@@ -72,12 +72,13 @@ internal sealed class DomovoiPet : Control
     {
         base.OnSizeChanged(e);
         UpdateShape();
+        RestorePosition();
     }
 
     protected override void OnVisibleChanged(EventArgs e)
     {
         base.OnVisibleChanged(e);
-        if (_animation == null) return;
+        if (_animation == null || _disposed) return;
         if (Visible) _animation.Start();
         else { FinishDrag(); _animation.Stop(); }
     }
@@ -228,7 +229,7 @@ internal sealed class DomovoiPet : Control
             p.AddBezier(17, 53, 8, 57, 3, 52, 8, 45);
         });
         Line(0xae8ed2, 2f, new(10, 48), new(26, 41), new(43, 38), new(63, 39), new(85, 46));
-        Curve(0x827193, p => { p.AddPolygon([new(36, 15), new(49, 17), new(47, 29), new(33, 26)]); });
+        Curve(0x827193, p => { p.AddPolygon(new PointF[] { new(36, 15), new(49, 17), new(47, 29), new(33, 26) }); });
         Line(0xc6b5d9, 1.2f, new(34, 17), new(38, 18));
         Line(0xc6b5d9, 1.2f, new(32, 23), new(36, 24));
         Line(0xc6b5d9, 1.2f, new(47, 21), new(50, 22));
@@ -264,8 +265,9 @@ internal sealed class DomovoiPet : Control
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !_disposed)
         {
+            _disposed = true;
             _animation.Stop();
             _animation.Dispose();
             ContextMenuStrip = null;
