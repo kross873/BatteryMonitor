@@ -73,3 +73,10 @@ Never commit private signing keys, credentials or personal diagnostics. Signed u
 Battery Monitor's original source code is licensed under the [GNU General Public License v3.0 only](LICENSE). Third-party components retain their own terms. See [third-party acknowledgements and licenses](docs/THIRD-PARTY.md).
 
 The matching source and applicable notices must accompany official binary releases. The release repository and this source repository are maintained separately.
+
+## Follow the developer
+
+Battery Monitor is developed by **domovoi**. Follow development updates, animated dev stories and other independent projects:
+
+- [TikTok — @domovoi.dev](https://www.tiktok.com/@domovoi.dev)
+- [Patreon — domovoi](https://www.patreon.com/domovoi_dev)
