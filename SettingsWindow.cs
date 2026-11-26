@@ -77,7 +77,7 @@ internal sealed class SettingsWindow : Form
         var compatibilityTab = MakeButton(T("Совместимость"), 184);
         foreach (var b in new[] { devicesTab, appearanceTab, updatesTab, compatibilityTab }) { b.Height = 44; b.TextAlign = ContentAlignment.MiddleLeft; b.Padding = new Padding(12,0,0,0); nav.Controls.Add(b); }
         sidebar.Controls.Add(nav, 0, 1);
-        sidebar.Controls.Add(new Label { Text = "v" + UpdateClient.CurrentVersion + "\nby kross873", Font = _small, ForeColor = Muted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(7,0,0,4) }, 0, 2);
+        sidebar.Controls.Add(new Label { Text = "v" + UpdateClient.CurrentVersion + "\nby domovoi", Font = _small, ForeColor = Muted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(7,0,0,4) }, 0, 2);
         var pages = new Panel { Dock = DockStyle.Fill, Margin = new Padding(24,18,24,0), BackColor = Canvas };
         shell.Controls.Add(pages, 1, 0);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Canvas, Margin = Padding.Empty };
