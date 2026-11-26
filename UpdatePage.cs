@@ -22,8 +22,8 @@ internal sealed class UpdatePage : Panel
         Dock = DockStyle.Fill; BackColor = SettingsWindow.Canvas; ForeColor = SettingsWindow.Ink;
         var card = new SettingsWindow.CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
         var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = SettingsWindow.Surface };
-        flow.Controls.Add(new Label { Text = T("Обновления Battery Monitor"), AutoSize = true, Font = new Font("Segoe UI Semibold", 16f), Margin = new Padding(0,0,0,12) });
-        flow.Controls.Add(new Label { Text = T("Установленная версия:") + " " + UpdateClient.CurrentVersion, AutoSize = true, Font = new Font("Segoe UI Semibold", 15f), Margin = new Padding(0,0,0,12) });
+        flow.Controls.Add(new Label { Text = T("Обновления Battery Monitor"), AutoSize = true, Font = new Font("Segoe UI", 24f, FontStyle.Bold), Margin = new Padding(0,0,0,18) });
+        flow.Controls.Add(new Label { Text = T("Установленная версия:") + " " + UpdateClient.CurrentVersion, AutoSize = true, Font = new Font("Segoe UI Semibold", 16f), ForeColor = SettingsWindow.Muted, Margin = new Padding(0,0,0,16) });
         _status = new Label { Text = UpdateClient.IsConfigured ? T("Нажмите «Проверить обновления».") : T("Источник обновлений ещё не настроен издателем."), AutoSize = true, MaximumSize = new Size(540,0), ForeColor = SettingsWindow.Muted, Margin = new Padding(0,0,0,12) };
         flow.Controls.Add(_status);
         _lastCheck = new Label { AutoSize = true, MaximumSize = new Size(540,0), ForeColor = SettingsWindow.Muted, Margin = new Padding(0,0,0,12) };
@@ -49,7 +49,7 @@ internal sealed class UpdatePage : Panel
         };
         flow.Controls.Add(releases);
         flow.Controls.Add(new Label { Text = T("Что нового"), AutoSize = true, Font = new Font("Segoe UI Semibold", 11f), Margin = new Padding(0,12,0,4) });
-        _notes = new TextBox { ReadOnly = true, Multiline = true, WordWrap = true, ScrollBars = ScrollBars.Vertical, Width = 540, Height = 112, BackColor = SettingsWindow.Canvas, ForeColor = SettingsWindow.Ink, Text = T("Нет доступного обновления.") };
+        _notes = new TextBox { ReadOnly = true, Multiline = true, WordWrap = true, ScrollBars = ScrollBars.Vertical, Width = 540, Height = 136, BorderStyle = BorderStyle.FixedSingle, BackColor = SettingsWindow.Canvas, ForeColor = SettingsWindow.Ink, Text = T("Нет доступного обновления.") };
         flow.Controls.Add(_notes);
         _progress = new ProgressBar { Width = 280, Height = 12, Visible = false, Margin = new Padding(0,8,0,8) };
         flow.Controls.Add(_progress);

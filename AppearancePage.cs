@@ -25,10 +25,10 @@ internal sealed class AppearancePage : UserControl
         AutoScroll = true;
         BackColor = SettingsWindow.Canvas;
         ForeColor = SettingsWindow.Ink;
-        var outer = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Padding = new Padding(16), BackColor = SettingsWindow.Surface };
+        var outer = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Padding = new Padding(22), BackColor = SettingsWindow.Surface };
         outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         Controls.Add(outer);
-        outer.Controls.Add(new Label { Text = T("Оформление виджета"), AutoSize = true, Font = new Font("Segoe UI", 16f, FontStyle.Bold), Margin = new Padding(3, 4, 3, 12) });
+        outer.Controls.Add(new Label { Text = T("Оформление виджета"), AutoSize = true, Font = new Font("Segoe UI", 24f, FontStyle.Bold), Margin = new Padding(3, 4, 3, 18) });
         _enabled = new CheckBox { Text = T("Управлять оформлением из Battery Monitor"), AutoSize = true, Checked = enabled };
         outer.Controls.Add(_enabled);
         outer.Controls.Add(new Label { Text = T("Настройки виджета возле трея (самостоятельного или Windhawk). В режиме обычных значков размер определяет Windows."), AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = SettingsWindow.Muted });
@@ -46,13 +46,13 @@ internal sealed class AppearancePage : UserControl
         _gap = new NumericUpDown { Minimum = 0, Maximum = 16, Value = settings.Gap, Dock = DockStyle.Fill, BackColor = SettingsWindow.Canvas, ForeColor = SettingsWindow.Ink };
         Add(T("Стиль"), _style); Add(T("Иконка"), _icon); Add(T("Цвет"), _color); Add(T("Свой цвет (#RRGGBB)"), _hex);
         Add(T("Размер текста"), _font); Add(T("Размер иконки"), _iconSize); Add(T("Жирность"), _weight); Add(T("Отступ"), _gap);
-        _preview = new Label { Text = T("Пример: 87%"), Dock = DockStyle.Top, Height = 44, BackColor = Color.FromArgb(37, 37, 37), ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter };
+        _preview = new Label { Text = T("Пример: 87%"), Dock = DockStyle.Top, Height = 58, BackColor = Color.FromArgb(29, 23, 43), ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter };
         outer.Controls.Add(_preview);
         outer.Controls.SetChildIndex(_preview, 3);
         var reset = SettingsWindow.MakeButton(T("Сбросить оформление"), 230);
         reset.Click += (_, _) => { _style.SelectedIndex = 0; _icon.SelectedIndex = 0; _color.SelectedIndex = 0; _weight.SelectedIndex = 0; _font.SelectedIndex = 0; _iconSize.SelectedIndex = 0; _hex.Text = "#66CCFF"; _gap.Value = 5; UpdatePreview(); };
         outer.Controls.Add(reset);
-        outer.Controls.Add(new Label { Text = T("Интерактивный домовой"), AutoSize = true, Margin = new Padding(3, 18, 3, 5), Font = new Font("Segoe UI", 12f, FontStyle.Bold) });
+        outer.Controls.Add(new Label { Text = T("Интерактивный домовой"), AutoSize = true, Margin = new Padding(3, 18, 3, 5), Font = new Font("Segoe UI Semibold", 15f, FontStyle.Bold) });
         _domovoiEnabled = new CheckBox { Text = T("Показывать домового в окне программы"), AutoSize = true, Checked = DomovoiPreferences.LoadEnabled() };
         outer.Controls.Add(_domovoiEnabled);
         outer.Controls.Add(new Label { Text = T("Перетаскивайте домового мышью. Правый клик — скрыть или вернуть на место."), AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = SettingsWindow.Muted });
@@ -79,7 +79,7 @@ internal sealed class AppearancePage : UserControl
         _fields.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _fields.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left }, 0, row);
         _fields.Controls.Add(control, 1, row);
-        control.Margin = new Padding(3, 4, 3, 4);
+        control.Margin = new Padding(3, 6, 3, 6);
     }
     private AppearanceSettings Read() => new(Styles[_style.SelectedIndex], Icons[_icon.SelectedIndex], Colors[_color.SelectedIndex],
         _hex.Text.Trim(), FontSizes[_font.SelectedIndex], IconSizes[_iconSize.SelectedIndex], Weights[_weight.SelectedIndex], (int)_gap.Value);

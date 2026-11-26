@@ -23,17 +23,17 @@ internal sealed class SettingsWindow : Form
     private readonly Font _deviceFont = new("Segoe UI Semibold", 10f);
     private readonly Font _small = new("Segoe UI", 9f);
     private Icon? _windowIcon;
-    internal static Color Ink => Dark ? Color.FromArgb(233, 238, 247) : Color.FromArgb(20, 32, 53);
-    internal static Color Muted => Dark ? Color.FromArgb(165, 177, 196) : Color.FromArgb(82, 96, 118);
-    private static Color Blue => Dark ? Color.FromArgb(117, 182, 255) : Color.FromArgb(23, 106, 196);
-    private static Color Sidebar => Dark ? Color.FromArgb(27, 31, 38) : Color.FromArgb(229, 235, 242);
-    internal static Color Canvas => Dark ? Color.FromArgb(20, 23, 28) : Color.FromArgb(241, 244, 248);
-    internal static Color Surface => Dark ? Color.FromArgb(34, 39, 47) : Color.White;
-    private static Color HeaderFill => Dark ? Color.FromArgb(44, 52, 64) : Color.FromArgb(232, 238, 248);
-    private static Color SelectedFill => Dark ? Color.FromArgb(41, 63, 88) : Color.FromArgb(215, 232, 252);
+    internal static Color Ink => Dark ? Color.FromArgb(244, 235, 250) : Color.FromArgb(43, 33, 58);
+    internal static Color Muted => Dark ? Color.FromArgb(186, 171, 206) : Color.FromArgb(101, 83, 121);
+    private static Color Accent => Dark ? Color.FromArgb(250, 208, 130) : Color.FromArgb(121, 75, 34);
+    private static Color Sidebar => Dark ? Color.FromArgb(29, 23, 43) : Color.FromArgb(233, 224, 243);
+    internal static Color Canvas => Dark ? Color.FromArgb(22, 18, 34) : Color.FromArgb(247, 242, 250);
+    internal static Color Surface => Dark ? Color.FromArgb(37, 30, 54) : Color.FromArgb(255, 252, 255);
+    private static Color HeaderFill => Dark ? Color.FromArgb(53, 43, 75) : Color.FromArgb(237, 228, 246);
+    private static Color SelectedFill => Dark ? Color.FromArgb(66, 48, 89) : Color.FromArgb(222, 205, 241);
     private static Color Good => Dark ? Color.FromArgb(114, 215, 170) : Color.FromArgb(17, 116, 79);
     private static Color Low => Dark ? Color.FromArgb(255, 132, 121) : Color.FromArgb(180, 55, 42);
-    private static Color Line => Dark ? Color.FromArgb(52, 59, 70) : Color.FromArgb(206, 215, 226);
+    private static Color Line => Dark ? Color.FromArgb(77, 61, 101) : Color.FromArgb(213, 198, 231);
 
     public SettingsWindow(MonitorSettings settings, bool startup,
         Action<MonitorSettings, bool> apply, Func<Task> refresh, Action diagnostics, Action<string, UpdateRelease> installUpdate)
@@ -48,7 +48,7 @@ internal sealed class SettingsWindow : Form
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Font;
         Font = new Font("Segoe UI", 10f);
-        ClientSize = new Size(1000, 760);
+        ClientSize = new Size(1060, 800);
         MinimumSize = new Size(900, 690);
         BackColor = Canvas;
         ForeColor = Ink;
@@ -60,25 +60,29 @@ internal sealed class SettingsWindow : Form
         Controls.Add(shell);
         var sidebar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Sidebar, Padding = new Padding(14), Margin = Padding.Empty };
         sidebar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
+        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 108));
         sidebar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
         shell.Controls.Add(sidebar, 0, 0); shell.SetRowSpan(sidebar, 2);
         var brand = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, BackColor = Sidebar };
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45)); brand.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        var logo = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 12, 5, 30) };
+        var logo = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 12, 5, 40) };
         logo.Paint += (_, e) => DrawLogo(e.Graphics, logo.ClientRectangle);
         brand.Controls.Add(logo, 0, 0);
-        brand.Controls.Add(new Label { Text = "Battery Monitor", Font = _section, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0,0,0,18) }, 1, 0);
+        brand.Controls.Add(new Label { Text = "domovoi\nBattery Monitor", Font = _section, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0,0,0,18), ForeColor = Ink }, 1, 0);
         sidebar.Controls.Add(brand, 0, 0);
         var nav = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = Padding.Empty, BackColor = Sidebar };
         var devicesTab = MakeButton(T("Устройства"), 184);
         var appearanceTab = MakeButton(T("Оформление"), 184);
         var updatesTab = MakeButton(T("Обновления"), 184);
         var compatibilityTab = MakeButton(T("Совместимость"), 184);
-        foreach (var b in new[] { devicesTab, appearanceTab, updatesTab, compatibilityTab }) { b.Height = 44; b.TextAlign = ContentAlignment.MiddleLeft; b.Padding = new Padding(12,0,0,0); nav.Controls.Add(b); }
+        foreach (var b in new[] { devicesTab, appearanceTab, updatesTab, compatibilityTab }) { b.Height = 48; b.TextAlign = ContentAlignment.MiddleLeft; b.Padding = new Padding(12,0,0,0); nav.Controls.Add(b); }
         sidebar.Controls.Add(nav, 0, 1);
-        sidebar.Controls.Add(new Label { Text = "v" + UpdateClient.CurrentVersion + "\nby domovoi", Font = _small, ForeColor = Muted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(7,0,0,4) }, 0, 2);
+        var signature = new Panel { Dock = DockStyle.Fill, BackColor = Sidebar, Margin = Padding.Empty };
+        signature.Paint += (_, e) => DrawNightSignature(e.Graphics, signature.ClientRectangle);
+        var credit = new Label { Text = "domovoi  /  v" + UpdateClient.CurrentVersion, Font = _small, ForeColor = Muted, Dock = DockStyle.Bottom, Height = 22, TextAlign = ContentAlignment.MiddleLeft };
+        signature.Controls.Add(credit);
+        sidebar.Controls.Add(signature, 0, 2);
         var pages = new Panel { Dock = DockStyle.Fill, Margin = new Padding(24,18,24,0), BackColor = Canvas };
         shell.Controls.Add(pages, 1, 0);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Canvas, Margin = Padding.Empty };
@@ -94,7 +98,8 @@ internal sealed class SettingsWindow : Form
         var updates = new UpdatePage(installUpdate) { Visible = false };
         pages.Controls.Add(updates);
         var compatibility = new Panel { Dock = DockStyle.Fill, BackColor = Canvas, Visible = false, AutoScroll = true };
-        var help = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = Surface, Padding = new Padding(20) };
+        var helpCard = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+        var help = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = Surface, Padding = new Padding(8) };
         help.Controls.Add(new Label { Text = T("Совместимость"), Font = _heading, AutoSize = true, Margin = new Padding(0,0,0,12) });
         _compatibilitySummary = new Label { Text = T("Ожидание данных…"), ForeColor = Muted, AutoSize = true, MaximumSize = new Size(500,0), Margin = new Padding(0,0,0,18) };
         help.Controls.Add(_compatibilitySummary);
@@ -107,7 +112,7 @@ internal sealed class SettingsWindow : Form
         compatibilityList.Click += (_, _) => OpenBrowser("https://github.com/kross873/BatteryMonitor/blob/main/docs/COMPATIBILITY.md");
         help.Controls.Add(compatibilityList);
         help.Controls.Add(new Label { Text = T("Обнаружение USB-приёмника не гарантирует получение заряда."), AutoSize = true, ForeColor = Muted, MaximumSize = new Size(500,0), Margin = new Padding(0,20,0,0) });
-        compatibility.Controls.Add(help); pages.Controls.Add(compatibility);
+        helpCard.Controls.Add(help); compatibility.Controls.Add(helpCard); pages.Controls.Add(compatibility);
         _domovoi = new DomovoiPet { Visible = _appearance.DomovoiEnabled };
         pages.Controls.Add(_domovoi);
         pages.ClientSizeChanged += (_, _) => _domovoi.RestorePosition();
@@ -166,7 +171,7 @@ internal sealed class SettingsWindow : Form
             return null;
         };
 
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty, BackColor = Canvas };
         _refresh = MakeButton(T("↻  Обновить сейчас"), 185);
         _refresh.Click += async (_, _) => await refresh();
         var report = MakeButton(T("Сохранить диагностику"), 220);
@@ -214,16 +219,46 @@ internal sealed class SettingsWindow : Form
 
     internal static Button MakeButton(string text, int width, bool primary = false)
     {
-        var b = new Button { Text = text, Width = width, Height = 36, Margin = new Padding(0, 2, 8, 4), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, UseVisualStyleBackColor = false };
+        var b = new NightButton { Text = text, Width = width, Height = 36, Margin = new Padding(0, 2, 8, 4), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, UseVisualStyleBackColor = false };
         PaintButton(b, primary); return b;
     }
     private static void PaintButton(Button b, bool primary)
     {
-        b.BackColor = primary ? Blue : Surface; b.ForeColor = primary ? (Dark ? Color.FromArgb(16,24,32) : Color.White) : Ink;
-        b.FlatAppearance.BorderColor = primary ? Blue : Line; b.FlatAppearance.BorderSize = 1;
-        b.FlatAppearance.MouseOverBackColor = primary ? (Dark ? Color.FromArgb(150,201,255) : Color.FromArgb(20,92,172)) : SelectedFill;
-        b.FlatAppearance.MouseDownBackColor = primary ? (Dark ? Color.FromArgb(100,165,235) : Color.FromArgb(17,80,150)) : HeaderFill;
+        b.BackColor = primary ? Accent : Surface; b.ForeColor = primary ? (Dark ? Color.FromArgb(43,29,24) : Color.White) : Ink;
+        b.FlatAppearance.BorderColor = primary ? Accent : Line; b.FlatAppearance.BorderSize = 1;
+        b.FlatAppearance.MouseOverBackColor = primary ? (Dark ? Color.FromArgb(255,224,165) : Color.FromArgb(102,61,28)) : SelectedFill;
+        b.FlatAppearance.MouseDownBackColor = primary ? (Dark ? Color.FromArgb(227,181,102) : Color.FromArgb(85,49,24)) : HeaderFill;
     }
+    private sealed class NightButton : Button
+    {
+        private bool _hover, _pressed;
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = _pressed = false; Invalidate(); }
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); if (e.Button == MouseButtons.Left) _pressed = true; Invalidate(); }
+        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _pressed = false; Invalidate(); }
+        protected override void OnMouseCaptureChanged(EventArgs e) { base.OnMouseCaptureChanged(e); if (!Capture) _pressed = false; Invalidate(); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if (Width < 4 || Height < 4) { base.OnPaint(e); return; }
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.Clear(Parent?.BackColor ?? Canvas);
+            int radius = Math.Min((Height - 1) / 2, Math.Max(3, DeviceDpi * 9 / 96));
+            using var path = Rounded(new Rectangle(0, 0, Width - 1, Height - 1), radius);
+            Color bg = !Enabled ? HeaderFill : _pressed ? FlatAppearance.MouseDownBackColor : _hover ? FlatAppearance.MouseOverBackColor : BackColor;
+            using var fill = new SolidBrush(bg); e.Graphics.FillPath(fill, path);
+            if (FlatAppearance.BorderSize > 0 || Focused)
+            {
+                using var stroke = new Pen(Focused ? Accent : FlatAppearance.BorderColor);
+                e.Graphics.DrawPath(stroke, path);
+            }
+            var bounds = Rectangle.FromLTRB(Padding.Left + 6, Padding.Top, Width - Padding.Right - 6, Height - Padding.Bottom);
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
+            flags |= TextAlign == ContentAlignment.MiddleLeft ? TextFormatFlags.Left : TextFormatFlags.HorizontalCenter;
+            TextRenderer.DrawText(e.Graphics, Text, Font, bounds, Enabled ? ForeColor : Muted, flags);
+            if (Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -5, -5));
+        }
+    }
+
     internal sealed class CardPanel : Panel
     {
         public CardPanel() { BackColor = Surface; DoubleBuffered = true; }
@@ -233,7 +268,7 @@ internal sealed class SettingsWindow : Form
             if (Width < 24 || Height < 24) return;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.Clear(Parent?.BackColor ?? Canvas);
-            using var shape = Rounded(new Rectangle(0, 0, Width - 1, Height - 1), 10);
+            using var shape = Rounded(new Rectangle(0, 0, Width - 1, Height - 1), Math.Min(Math.Min(Width, Height) / 2 - 1, Math.Max(8, DeviceDpi * 14 / 96)));
             using var fill = new SolidBrush(Surface); using var pen = new Pen(Line);
             e.Graphics.FillPath(fill, shape); e.Graphics.DrawPath(pen, shape);
         }
@@ -250,18 +285,51 @@ internal sealed class SettingsWindow : Form
         g.SmoothingMode = SmoothingMode.AntiAlias;
         int size = Math.Min(area.Width - 2, area.Height - 2); var r = new Rectangle(1, (area.Height - size) / 2, size, size);
         using var path = Rounded(r, Math.Min(14, size / 4));
-        using var fill = new LinearGradientBrush(r, Color.FromArgb(40, 160, 244), Color.FromArgb(20, 62, 206), 55f); g.FillPath(fill, path);
+        using var fill = new LinearGradientBrush(r, Color.FromArgb(105, 77, 147), Color.FromArgb(43, 31, 69), 55f); g.FillPath(fill, path);
         float x = r.X + size * .19f, y = r.Y + size * .31f, w = size * .58f, h = size * .38f;
-        using var pen = new Pen(Color.White, Math.Max(2, size / 23f)); g.DrawRectangle(pen, x, y, w, h); g.DrawLine(pen, x + w + 3, y + h * .32f, x + w + 3, y + h * .68f);
-        using var white = new SolidBrush(Color.White); g.FillPolygon(white, new PointF[] { new(x+w*.54f,y+h*.07f), new(x+w*.27f,y+h*.53f), new(x+w*.46f,y+h*.53f), new(x+w*.40f,y+h*.94f), new(x+w*.72f,y+h*.43f), new(x+w*.53f,y+h*.43f) });
+        using var pen = new Pen(Color.FromArgb(255, 220, 147), Math.Max(2, size / 23f)); g.DrawRectangle(pen, x, y, w, h); g.DrawLine(pen, x + w + 3, y + h * .32f, x + w + 3, y + h * .68f);
+        using var white = new SolidBrush(Color.FromArgb(255, 220, 147)); g.FillPolygon(white, new PointF[] { new(x+w*.54f,y+h*.07f), new(x+w*.27f,y+h*.53f), new(x+w*.46f,y+h*.53f), new(x+w*.40f,y+h*.94f), new(x+w*.72f,y+h*.43f), new(x+w*.53f,y+h*.43f) });
     }
     private static void PaintNavigation(Button b, bool active)
     {
         b.BackColor = active ? SelectedFill : Sidebar;
-        b.ForeColor = active ? Ink : Muted;
+        b.ForeColor = active ? (Dark ? Accent : Ink) : Muted;
         b.FlatAppearance.BorderSize = 0;
         b.FlatAppearance.MouseOverBackColor = SelectedFill;
         b.FlatAppearance.MouseDownBackColor = HeaderFill;
+    }
+
+    private static void DrawNightSignature(Graphics g, Rectangle area)
+    {
+        if (area.Width < 50 || area.Height < 46) return;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        int h = Math.Max(30, area.Height - 26);
+        var r = new Rectangle(1, 1, area.Width - 3, h - 2);
+        using var frame = Rounded(r, 10);
+        using var sky = new LinearGradientBrush(r, Color.FromArgb(35, 27, 55), Color.FromArgb(66, 45, 88), 75f);
+        g.FillPath(sky, frame);
+        var old = g.Save(); g.SetClip(frame);
+        using var moon = new SolidBrush(Color.FromArgb(255, 217, 148));
+        int m = Math.Min(31, h / 2);
+        g.FillEllipse(moon, r.Right - m - 13, 12, m, m);
+        using var shadow = new SolidBrush(Color.FromArgb(57, 40, 78));
+        g.FillEllipse(shadow, r.Right - m - 4, 7, m, m);
+        using var stars = new SolidBrush(Color.FromArgb(210, 190, 235));
+        for (int i = 0; i < 11; i++)
+        {
+            int x = 9 + (i * 37 + 12) % Math.Max(1, r.Width - 20);
+            int y = 7 + (i * 13) % Math.Max(1, h / 2);
+            g.FillEllipse(stars, x, y, i % 3 == 0 ? 3 : 2, i % 3 == 0 ? 3 : 2);
+        }
+        using var houses = new SolidBrush(Color.FromArgb(25, 20, 39));
+        for (int i = 0; i < 7; i++)
+        {
+            int x = i * Math.Max(1, r.Width / 6), bh = 12 + (i * 11) % 21;
+            int w = Math.Max(9, r.Width / 7);
+            g.FillRectangle(houses, x, r.Bottom - bh, w, bh);
+            if (i % 2 == 0) g.FillRectangle(moon, x + 4, r.Bottom - bh + 5, 3, 4);
+        }
+        g.Restore(old);
     }
 
     private void OpenBrowser(string url)
@@ -283,7 +351,7 @@ internal sealed class SettingsWindow : Form
     }
     private Control CreateDeviceCard(string name, string state, int? percent)
     {
-        var card = new CardPanel { Width = 300, Height = 132, Margin = new Padding(0,0,12,12), Padding = new Padding(15), AccessibleName = name + " — " + (percent is int p ? p + "%" : T("Недоступен")) };
+        var card = new CardPanel { Width = 300, Height = 146, Margin = new Padding(0,0,12,12), Padding = new Padding(16), AccessibleName = name + " — " + (percent is int p ? p + "%" : T("Недоступен")) };
         var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Surface, Margin = Padding.Empty };
         content.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
         content.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
@@ -293,10 +361,10 @@ internal sealed class SettingsWindow : Form
         content.Controls.Add(new Label { Text = state, ForeColor = Muted, Dock = DockStyle.Fill, AutoEllipsis = true, Font = _small, Margin = Padding.Empty }, 0, 1);
         var color = percent is int charge ? (charge <= 20 ? Low : Good) : Muted;
         content.Controls.Add(new Label { Text = percent is int value ? value + "%" : T("Недоступен"), Font = percent.HasValue ? _heading : _section, ForeColor = color, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Margin = Padding.Empty }, 0, 2);
-        var bar = new Panel { Dock = DockStyle.Fill, BackColor = HeaderFill, Margin = Padding.Empty };
+        var bar = new Panel { Dock = DockStyle.Fill, BackColor = Surface, Margin = Padding.Empty };
         if (percent is int level)
         {
-            bar.Paint += (_, e) => { using var brush = new SolidBrush(color); e.Graphics.FillRectangle(brush, 0, 0, bar.ClientSize.Width * level / 100, bar.ClientSize.Height); };
+            bar.Paint += (_, e) => DrawChargeBar(e.Graphics, bar.ClientRectangle, level, color);
             bar.Resize += (_, _) => bar.Invalidate();
         }
         else bar.Visible = false;
@@ -304,6 +372,21 @@ internal sealed class SettingsWindow : Form
         card.Controls.Add(content);
         return card;
     }
+    private static void DrawChargeBar(Graphics g, Rectangle area, int level, Color color)
+    {
+        if (area.Width < 2 || area.Height < 2) return;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, area.Width - 1, area.Height - 1);
+        int radius = Math.Max(1, Math.Min(rect.Width, rect.Height) / 2);
+        using var track = Rounded(rect, radius);
+        using var bg = new SolidBrush(HeaderFill);
+        g.FillPath(bg, track);
+        var old = g.Save(); g.SetClip(track);
+        using var fill = new SolidBrush(color);
+        g.FillRectangle(fill, 0, 0, area.Width * Math.Clamp(level, 0, 100) / 100f, area.Height);
+        g.Restore(old);
+    }
+
     public void SetSnapshot(IReadOnlyList<Peripheral> devices, string status, bool refreshing)
     {
         if (IsDisposed || Disposing) return;

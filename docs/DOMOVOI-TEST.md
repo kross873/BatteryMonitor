@@ -20,3 +20,11 @@ The previous alpha-layer renderer and body suspension remain. Four separate limb
 ## Community signs
 
 Three explicit menu actions in Domovoi actions show GitHub (BatteryMonitor repository), TikTok (@domovoi.dev), and Telegram (@podkrovatyuuu). Each sign rises from the hands, holds for a few seconds, and retracts. The sign is rendered from the blended hand pose; text stays readable when mirrored. Signs can appear occasionally during autonomous idle behavior, with at least 120 seconds between sign starts; no links open automatically. A deliberate press and release on the fully revealed sign opens only its fixed HTTPS URL in the default browser. Moving the mouse while pressing cancels the link, and dragging the character outside the sign remains unchanged. Test all three menu actions, links, mirrored facing, dragging hat/limbs outside board, press-drag-release cancellation, capture loss, hide and resize. Windows compilation and visual tests not run here.
+
+
+## Night Workshop visual pass (DEV)
+
+- Verify all four settings pages in light/dark/system themes, RU/UK/EN, 100%/150% DPI, minimum window size and resize.
+- Check rounded buttons (mouse, keyboard Tab/Enter/Space, disabled state), navigation selection and focus, device-card wrapping, real 0/20/100% and unknown values, no clipped controls or unreadable labels.
+- Retest mascot dragging, transparent hit testing, perch on the resized device cards, all actions and links. No mascot engine changes are intended.
+- Verify diagnostics, appearance preview, save/restart, update and compatibility workflows. Windows visual/build verification pending. No release publication.
