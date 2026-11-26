@@ -8,7 +8,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo Building Battery Monitor 0.12.0 for Windows x64...
+echo Building Battery Monitor 1.0.0 for Windows x64...
 dotnet publish "BatteryMonitor.csproj" -c Release -r win-x64 --self-contained true --disable-build-servers -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -o "%~dp0publish"
 if errorlevel 1 (
   echo BUILD FAILED. Read the error above.

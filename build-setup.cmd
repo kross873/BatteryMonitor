@@ -1,6 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+if exist "DomovoiPet.Developer.cs" goto :private_build
+if exist "SettingsWindow.Developer.cs" goto :private_build
+findstr /L /C:"OpenDeveloperPanel" "DomovoiPet.cs" >nul 2>&1
+if not errorlevel 1 goto :private_build
 set "ISCC="
 if /i not "%~1"=="nopause" if not "%~1"=="" if exist "%~1" set "ISCC=%~1"
 if not defined ISCC for /f "delims=" %%I in ('where ISCC.exe 2^>nul') do if not defined ISCC set "ISCC=%%I"
@@ -20,7 +24,12 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo SUCCESS: release\BatteryMonitor-0.12.0-Setup.exe
+echo SUCCESS: release\BatteryMonitor-1.0.0-Setup.exe
 if /i "%~1"=="nopause" exit /b 0
 pause
 exit /b 0
+
+:private_build
+echo INSTALLER BLOCKED: use a fresh public source checkout, not the private development build.
+pause
+exit /b 1

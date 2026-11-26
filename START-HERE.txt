@@ -1,4 +1,5 @@
-﻿Battery Monitor 0.12.0 — Центр обновлений
+﻿Battery Monitor 1.0.0 — Release preparation
 
-Для обычной установки: закройте старую программу, запустите build-setup.cmd, затем Setup.exe из release.
-Для действующих обновлений через GitHub: сначала настройте источник через configure-updates.cmd, затем test-updates.cmd и make-release.cmd. Инструкция: README.md и docs/DEVELOPMENT-RU.md. Для обновления существующего канала используйте прежний ключ и прежнюю конфигурацию. Не создавайте новый ключ.
+Для локального теста: скачайте чистые исходники, закройте старый Battery Monitor через трей и запустите build-windows.cmd. Запускайте publish\BatteryMonitor.exe.
+Для официального выпуска: восстановите существующий публичный update-config.json через configure-updates.cmd с прежним ключом (НЕ создавайте новый). Запустите test-updates.cmd, затем make-release.cmd. Проверьте установку и обновление на Windows. Файлы: release\BatteryMonitor-1.0.0-Setup.exe и release\update.json. Не публикуйте до прохождения проверок; не используйте приватную DEV-сборку.
+Подробности: docs/RELEASE-1.0.0-RU.md.

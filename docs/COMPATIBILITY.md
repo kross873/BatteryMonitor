@@ -13,6 +13,9 @@ This list records tested device and connection combinations. A recognized vendor
 | Razer Viper V3 Pro | 2.4 GHz USB receiver | Untested | Awaiting report |
 | HyperX Cloud III Wireless | 2.4 GHz USB receiver | Untested | Awaiting report |
 | Keychron K2 | Bluetooth | Untested | Awaiting report |
+| Sony DualShock 4 | Bluetooth / USB | Untested | No Bluetooth adapter available for developer test; USB also not confirmed |
+| Sony DualSense | Bluetooth / USB | Untested | No Bluetooth adapter available for developer test; USB also not confirmed |
+| Bluetooth headsets (model-dependent) | Bluetooth | Experimental / untested individually | Standard battery API only when exposed by device and driver |
 
 Bluetooth Battery Service, standard HID battery fields and Windows battery properties are device-dependent. Do not infer compatibility for an entire brand or all revisions of a model.
 

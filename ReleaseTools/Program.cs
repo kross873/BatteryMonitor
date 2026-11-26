@@ -39,9 +39,15 @@ try
     if (operation == "sign")
     {
         if (!UpdateProtocol.ValidRepository(config.Repository) || string.IsNullOrEmpty(config.PublicKey)) throw new InvalidOperationException("Run configure-updates.cmd first, then rebuild the installer.");
+        if (File.Exists(Path.Combine(root, "DomovoiPet.Developer.cs")) || File.Exists(Path.Combine(root, "SettingsWindow.Developer.cs")) || File.ReadAllText(Path.Combine(root, "DomovoiPet.cs")).Contains("OpenDeveloperPanel", StringComparison.Ordinal))
+            throw new InvalidOperationException("Do not sign a private development build.");
         string version = XDocument.Load(Path.Combine(root, "BatteryMonitor.csproj")).Descendants("Version").Single().Value;
         string asset = UpdateProtocol.AssetName(version);
         string setup = Path.Combine(root, "release", asset);
+        var exeVersion = System.Reflection.AssemblyName.GetAssemblyName(Path.Combine(root, "publish", "BatteryMonitor.dll")).Version;
+        if (exeVersion?.ToString(3) != version) throw new InvalidDataException("Published application version does not match project version. Rebuild the installer.");
+        var setupVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(setup);
+        if (setupVersion.FileVersion != version + ".0") throw new InvalidDataException("Installer version does not match project version. Rebuild with the current .iss file.");
         using var rsa = RSA.Create(); rsa.ImportFromPem(File.ReadAllText(KeyPath(config.Repository)));
         if (rsa.ExportSubjectPublicKeyInfoPem() != config.PublicKey) throw new CryptographicException("Wrong signing key.");
         using var file = File.OpenRead(setup);
@@ -90,7 +96,9 @@ try
         if (BatteryValue.FromWindowsByte(0) != 0 || BatteryValue.FromWindowsByte(100) != 100 ||
             BatteryValue.FromWindowsByte(101) != null || BatteryValue.FromWindowsByte(255) != null)
             throw new Exception("Windows battery percent validation failed.");
-        Console.WriteLine("Battery value tests passed."); return 0;
+        Console.WriteLine("Battery value tests passed.");
+        AssistantSelfTests.Run();
+        return 0;
     }
     throw new ArgumentException("Use configure, sign, or self-test.");
 }

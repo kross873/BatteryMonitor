@@ -15,7 +15,7 @@ internal sealed class DomovoiPet : Control
     private DomovoiPose _renderedPose, _pose, _basePose;
     private readonly DomovoiRig _rig = new();
     private float _lookX, _lookY;
-    private double _renderedSignAmount, _nextSignTime = 55;
+    private double _renderedSignAmount, _nextSignTime = 25;
     private DomovoiMood _signPressed = DomovoiMood.Idle;
     private Point _signPressPoint;
     private bool _signPressMoved;
@@ -28,7 +28,8 @@ internal sealed class DomovoiPet : Control
     internal bool ReactToAssistant(AssistantNotice notice, Action open, Func<Point?>? target = null, bool requested = false)
     {
         if (_disposed || !Visible || _dragging || _menu.Visible || _renderFailed ||
-            (!requested && (_hover || _actionRemaining > 0 || _happy > 0 || _dizzy > 0))) return false;
+            (!requested && (_hover || DomovoiSign.IsSign(_signPressed) ||
+                (!notice.Urgent && (_actionRemaining > 0 || _happy > 0 || _dizzy > 0))))) return false;
         if (notice.Urgent && notice.Percent.HasValue)
         {
             StartAction(notice.Mood, 9);
@@ -140,8 +141,8 @@ internal sealed class DomovoiPet : Control
     private static double Wrap(double angle) => Math.IEEERemainder(angle, 360);
     private DomovoiMood Mood => _dragging ? DomovoiMood.Held :
         _dizzy > 0 ? DomovoiMood.Dizzy : _happy > 0 ? DomovoiMood.Happy :
-        _actionRemaining > 0 ? _actionMood : _walking ? DomovoiMood.Walking : _idle >= 48 ? DomovoiMood.Sleepy :
-        _lowBattery ? DomovoiMood.Worried : DomovoiMood.Idle;
+        _actionRemaining > 0 ? _actionMood : _walking ? DomovoiMood.Walking : _lowBattery ? DomovoiMood.Worried :
+        _idle >= 48 ? DomovoiMood.Sleepy : DomovoiMood.Idle;
 
     private void RefreshPose()
     {

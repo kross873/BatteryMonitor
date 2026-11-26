@@ -115,7 +115,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(T("Обновить сейчас"), null, async (_, _) => await RefreshDevicesAsync());
         menu.Items.Add(T("Сохранить диагностику..."), null, (_, _) => SaveDiagnostics());
         menu.Items.Add(T("О программе"), null, (_, _) => MessageBox.Show(
-            "Battery Monitor 0.12.0\n\n" + T("Режим:") + " " + (_windhawkMode ? T("Windhawk (мод 0.4.0)") : T("Самостоятельный виджет")) + "\n" + T("До трёх устройств.") + "\n" + T("AJAZZ, стандартный HID, Bluetooth и контроллеры Windows.") + "\n" + T("USB G435 — точный заряд неизвестен."),
+            "Battery Monitor " + UpdateClient.CurrentVersion + "\n\n" + T("Режим:") + " " + (_windhawkMode ? T("Windhawk (мод 0.4.0)") : T("Самостоятельный виджет")) + "\n" + T("До трёх устройств.") + "\n" + T("AJAZZ, стандартный HID, Bluetooth и контроллеры Windows.") + "\n" + T("USB G435 — точный заряд неизвестен."),
             "Battery Monitor", MessageBoxButtons.OK, MessageBoxIcon.Information));
         menu.Items.Add(T("Выход"), null, (_, _) => ExitThread());
 
@@ -443,7 +443,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         using var dialog = new SaveFileDialog
         {
             Title = T("Сохранить диагностику Battery Monitor"),
-            FileName = "BatteryMonitor-diagnostics-v0.12.0.txt",
+            FileName = "BatteryMonitor-diagnostics-v" + UpdateClient.CurrentVersion + ".txt",
             Filter = T("Текст (*.txt)|*.txt"),
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
         };
@@ -516,12 +516,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu?.Dispose();
         base.ExitThreadCore();
     }
-}
-
-internal sealed record Peripheral(string Name, int? BatteryPercent, bool Connected, string Detail, string? Id = null, string? ShortName = null)
-{
-    public string Key => Id ?? Name;
-    public string Label => ShortName ?? (Name.StartsWith("AJAZZ", StringComparison.OrdinalIgnoreCase) ? "AJAZZ" : Name);
 }
 
 internal static class GraphicsExtensions

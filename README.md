@@ -8,14 +8,17 @@ A free, open-source Windows 11 utility that displays the battery level of suppor
 
 [All releases](https://github.com/kross873/battery-monitor-releases/releases) · [Report device compatibility](https://github.com/kross873/BatteryMonitor/issues/new?template=device-compatibility.yml) · [License](LICENSE)
 
-## What's new in 0.12.0
+## 1.0.0 — Domovoi Assistant (release preparation)
 
-- Fluent-inspired sidebar and redesigned device battery cards.
-- Refreshed light and dark palettes.
-- Dedicated compatibility section and appearance controls.
-- Existing standalone and optional Windhawk modes, with signed update verification.
+The 1.0.0 source candidate introduces the Night Workshop design and an interactive Domovoi assistant. The download link above always points to the currently published official release; this source candidate is not evidence of publication.
 
-Battery support varies by device and connection. Community testing is welcome.
+- Branded light and dark themes, device cards and four settings pages.
+- Animated mascot with drag physics and distinct assistant reactions.
+- Battery warnings at 20%, 10% and 5%, device events, quick navigation and optional desktop alerts.
+- Local, session-only battery history and approximate discharge estimates when enough reliable measurements exist.
+- Existing standalone and optional Windhawk modes, signed update verification, and three interface languages.
+
+Battery support varies by device and connection. Bluetooth headsets and controllers, including DualShock 4 and DualSense, are experimental and not yet verified individually. Unknown readings remain unknown. Community testing is welcome.
 
 ## Features
 
@@ -50,7 +53,7 @@ Requires Windows x64, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dot
 
 1. Clone or download this repository and open its root folder.
 2. Run `build-windows.cmd` to build the portable application in `publish/`, or `build-setup.cmd` to build the installer in `release/`.
-3. Run `test-updates.cmd` to exercise the update protocol and battery-value normalization tests.
+3. Run `test-updates.cmd` to exercise the update protocol, battery-value normalization and assistant logic tests.
 
 The checked-in `update-config.json` is intentionally unconfigured. A local build works without automatic updates. Official release builds use the publisher's own configuration and signing key. See [publisher notes](docs/DEVELOPMENT-RU.md) for the existing release workflow. Do not generate a replacement key for an already published update channel.
 

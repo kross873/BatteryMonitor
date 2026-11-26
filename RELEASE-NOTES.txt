@@ -1,7 +1,9 @@
-Battery Monitor v0.12.0 — Design Update
+Battery Monitor v1.0.0 — Domovoi Assistant
 
-- New Fluent-inspired sidebar and device battery cards.
-- Updated light and dark palettes.
-- Dedicated compatibility section and existing appearance/update controls.
-- Subtle author credit: by kross873.
-- Existing device providers, widget modes and update verification preserved.
+- Night Workshop redesign with branded light and dark themes.
+- Interactive Domovoi mascot: drag physics, individual animations, clickable community signs.
+- Battery alerts at 20%, 10% and 5%, event history, device navigation, quick actions and optional desktop notifications.
+- Approximate runtime estimates based on sufficient valid readings within the current session.
+- Russian, Ukrainian and English; standalone taskbar widget or optional Windhawk integration.
+- No telemetry; unknown readings are not replaced with guessed percentages.
+- Bluetooth headsets and controllers remain experimental and device-dependent. AJAZZ AJ179 APEX USB receiver/dock was tested in earlier builds; Logitech G435 USB receiver does not provide automatic percentage.

@@ -5,8 +5,6 @@ namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
-internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched, GitHubSign, TikTokSign, TelegramSign, BatterySign, BatteryCriticalSign, BatteryEmptySign, ChargeRising, ChargeFull, DeviceFound, SignalLost, CompatibilityInspect, UpdateDelivery, WidgetTune, Guide }
-
 internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot, Hat, Beard }
 internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
 internal readonly record struct DomovoiPose(float Bob, float LeftArm, float RightArm, float LeftLeg, float RightLeg, float Head, float Hat = 0, float Beard = 0);
