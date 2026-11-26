@@ -10,6 +10,7 @@ internal sealed class SettingsWindow : Form
     private readonly Label _compatibilitySummary;
     private string _cardSignature = "";
     private readonly AppearancePage _appearance;
+    private readonly DomovoiPet _domovoi;
     private readonly Label _status, _saveStatus;
     private readonly ComboBox _interval, _theme, _language;
     private readonly string[] _themes = ["system", "light", "dark"];
@@ -107,6 +108,15 @@ internal sealed class SettingsWindow : Form
         help.Controls.Add(compatibilityList);
         help.Controls.Add(new Label { Text = T("Обнаружение USB-приёмника не гарантирует получение заряда."), AutoSize = true, ForeColor = Muted, MaximumSize = new Size(500,0), Margin = new Padding(0,20,0,0) });
         compatibility.Controls.Add(help); pages.Controls.Add(compatibility);
+        _domovoi = new DomovoiPet { Visible = _appearance.DomovoiEnabled };
+        pages.Controls.Add(_domovoi);
+        pages.ClientSizeChanged += (_, _) => _domovoi.RestorePosition();
+        _domovoi.HideRequested += (_, _) => _appearance.DomovoiEnabled = false;
+        _appearance.DomovoiEnabledChanged += (_, _) =>
+        {
+            _domovoi.Visible = _appearance.DomovoiEnabled;
+            if (_domovoi.Visible) { _domovoi.RestorePosition(); _domovoi.BringToFront(); }
+        };
         void SelectPage(int page)
         {
             var views = new Control[] { layout, _appearance, updates, compatibility };
@@ -117,6 +127,7 @@ internal sealed class SettingsWindow : Form
                 PaintNavigation(buttons[i], i == page);
             }
             views[page].BringToFront();
+            if (_domovoi.Visible) _domovoi.BringToFront();
         }
         devicesTab.Click += (_, _) => SelectPage(0);
         appearanceTab.Click += (_, _) => SelectPage(1);
@@ -177,6 +188,7 @@ internal sealed class SettingsWindow : Form
         var close = MakeButton(T("Закрыть"), 110); close.Dock = DockStyle.Fill; close.Click += (_, _) => Close();
         footer.Controls.Add(_saveStatus, 0, 0); footer.Controls.Add(save, 1, 0); footer.Controls.Add(close, 2, 0); footer.Margin = new Padding(24,0,24,12); shell.Controls.Add(footer, 1, 1);
         AcceptButton = save; CancelButton = close;
+        Shown += (_, _) => { _domovoi.RestorePosition(); _domovoi.BringToFront(); };
     }
 
     internal static Button MakeButton(string text, int width, bool primary = false)
@@ -275,6 +287,7 @@ internal sealed class SettingsWindow : Form
     {
         if (IsDisposed || Disposing) return;
         _status.Text = status; _refresh.Enabled = !refreshing;
+        _domovoi.SetLowBattery(devices.Any(d => d.Connected && d.BatteryPercent is >= 0 and <= 20));
         _compatibilitySummary.Text = T("Обнаружено устройств:") + " " + devices.Count + "  ·  " + T("Заряд доступен:") + " " + devices.Count(d => d.BatteryPercent is >= 0 and <= 100);
         var signature = string.Join("\n", devices.Select(d => d.Key + "|" + d.Name + "|" + d.BatteryPercent + "|" + d.Connected));
         if (_cardSignature == signature && _devices.Controls.Count > 0) return;

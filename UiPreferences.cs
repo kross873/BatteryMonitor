@@ -47,6 +47,11 @@ internal sealed record UiPreferences(string Language, string Theme)
     private static readonly Dictionary<string, (string Uk, string En)> Translations = new()
     {
         ["Обновления"] = ("Оновлення", "Updates"),
+        ["Интерактивный домовой"] = ("Інтерактивний домовик", "Interactive Domovoi"),
+        ["Показывать домового в окне программы"] = ("Показувати домовика у вікні програми", "Show Domovoi in the app window"),
+        ["Перетаскивайте домового мышью. Правый клик — скрыть или вернуть на место."] = ("Перетягуйте домовика мишею. Правий клік — приховати або повернути на місце.", "Drag Domovoi with your mouse. Right-click to hide or reset his position."),
+        ["Скрыть домового"] = ("Приховати домовика", "Hide Domovoi"),
+        ["Вернуть на место"] = ("Повернути на місце", "Reset position"),
         ["Совместимость"] = ("Сумісність", "Compatibility"),
         ["Помогите расширить поддержку устройств"] = ("Допоможіть розширити підтримку пристроїв", "Help expand device support"),
         ["Укажите модель устройства и работает ли отображение заряда. Отчёты публичные, данные автоматически не отправляются."] = ("Вкажіть модель пристрою та чи працює відображення заряду. Звіти публічні, дані автоматично не надсилаються.", "Report your device model and whether battery readings work. Reports are public; no data is sent automatically."),

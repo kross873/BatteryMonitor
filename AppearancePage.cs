@@ -3,7 +3,9 @@ namespace BatteryMonitor;
 
 internal sealed class AppearancePage : UserControl
 {
-    private readonly CheckBox _enabled;
+    private readonly CheckBox _enabled, _domovoiEnabled;
+    internal event EventHandler? DomovoiEnabledChanged;
+    internal bool DomovoiEnabled { get => _domovoiEnabled.Checked; set => _domovoiEnabled.Checked = value; }
     private readonly ComboBox _style, _icon, _color, _weight, _font, _iconSize;
     private readonly TextBox _hex;
     private readonly NumericUpDown _gap;
@@ -50,6 +52,11 @@ internal sealed class AppearancePage : UserControl
         var reset = SettingsWindow.MakeButton(T("Сбросить оформление"), 230);
         reset.Click += (_, _) => { _style.SelectedIndex = 0; _icon.SelectedIndex = 0; _color.SelectedIndex = 0; _weight.SelectedIndex = 0; _font.SelectedIndex = 0; _iconSize.SelectedIndex = 0; _hex.Text = "#66CCFF"; _gap.Value = 5; UpdatePreview(); };
         outer.Controls.Add(reset);
+        outer.Controls.Add(new Label { Text = T("Интерактивный домовой"), AutoSize = true, Margin = new Padding(3, 18, 3, 5), Font = new Font("Segoe UI", 12f, FontStyle.Bold) });
+        _domovoiEnabled = new CheckBox { Text = T("Показывать домового в окне программы"), AutoSize = true, Checked = DomovoiPreferences.LoadEnabled() };
+        outer.Controls.Add(_domovoiEnabled);
+        outer.Controls.Add(new Label { Text = T("Перетаскивайте домового мышью. Правый клик — скрыть или вернуть на место."), AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = SettingsWindow.Muted });
+        _domovoiEnabled.CheckedChanged += (_, _) => DomovoiEnabledChanged?.Invoke(this, EventArgs.Empty);
         _enabled.CheckedChanged += (_, _) => { _fields.Enabled = _enabled.Checked; reset.Enabled = _enabled.Checked; UpdatePreview(); };
         foreach (var c in new[] { _style, _icon, _color, _weight, _font, _iconSize }) c.SelectedIndexChanged += (_, _) => UpdatePreview();
         _hex.TextChanged += (_, _) => UpdatePreview();
@@ -80,7 +87,11 @@ internal sealed class AppearancePage : UserControl
     {
         if (_enabled.Checked && !Read().IsValid()) throw new ArgumentException(T("В оформлении указан неверный цвет. Используйте #RRGGBB, например #66CCFF."));
     }
-    public void SaveSettings() => Read().Save(_enabled.Checked);
+    public void SaveSettings()
+    {
+        Read().Save(_enabled.Checked);
+        DomovoiPreferences.SaveEnabled(_domovoiEnabled.Checked);
+    }
     private void UpdatePreview()
     {
         var a = Read();
