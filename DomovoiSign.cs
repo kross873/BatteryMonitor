@@ -7,7 +7,7 @@ namespace BatteryMonitor;
 internal static class DomovoiSign
 {
     internal static bool IsSign(DomovoiMood mood) =>
-        mood is DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign;
+        mood is DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign or DomovoiMood.BatterySign;
 
     internal static string? Url(DomovoiMood mood) => mood switch
     {
@@ -47,12 +47,13 @@ internal static class DomovoiSign
         return Bounds(pose,amount).Contains(model);
     }
 
-    internal static void Paint(Graphics g, DomovoiPose pose, DomovoiMood mood, int facing, double amount)
+    internal static void Paint(Graphics g, DomovoiPose pose, DomovoiMood mood, int facing, double amount, string batteryText = "")
     {
         var (title,handle,background,accent) = mood switch
         {
             DomovoiMood.GitHubSign => ("GitHub","BatteryMonitor",Color.FromArgb(36,38,49),Color.FromArgb(187,202,235)),
             DomovoiMood.TikTokSign => ("TikTok","@domovoi.dev",Color.FromArgb(30,28,39),Color.FromArgb(91,237,228)),
+            DomovoiMood.BatterySign => (batteryText, "BATTERY !", Color.FromArgb(73,38,49), Color.FromArgb(255,175,154)),
             _ => ("Telegram","@podkrovatyuuu",Color.FromArgb(30,94,144),Color.FromArgb(181,232,255))
         };
         var r = Bounds(pose,amount);

@@ -28,3 +28,11 @@ Three explicit menu actions in Domovoi actions show GitHub (BatteryMonitor repos
 - Check rounded buttons (mouse, keyboard Tab/Enter/Space, disabled state), navigation selection and focus, device-card wrapping, real 0/20/100% and unknown values, no clipped controls or unreadable labels.
 - Retest mascot dragging, transparent hit testing, perch on the resized device cards, all actions and links. No mascot engine changes are intended.
 - Verify diagnostics, appearance preview, save/restart, update and compatibility workflows. Windows visual/build verification pending. No release publication.
+
+
+## Assistant module (DEV)
+
+- Feed only completed snapshots; validate thresholds 20/10/5, hysteresis reset at 25, unknown and failed scans, initial low charge, multiple devices, two missing scans, rising readings and 100% without claiming charging status.
+- Check no repeated warnings for unchanged readings. Check session forecast only after 5 samples, 30 min and 5% decline; resets on rises, missing values and scan failures. No data transmitted or saved to disk.
+- Check the assistant strip, details dialog, targeted card scrolling/highlight, clickable battery board, quick menu, all three languages and both themes. Check DND and opt-in outside-window alerts (no focus steal, rate limit, closes itself, click opens actual device).
+- Check manual/automatic update notice, compatibility navigation, diagnostics, existing social signs and grip physics. No release until build and Windows test.

@@ -59,6 +59,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private string _widgetMenuSignature = "";
     private MonitorSettings _settings = MonitorSettings.Load();
     private SettingsWindow? _settingsWindow;
+    private readonly BatteryAssistant _assistant = new();
+    private AssistantPopup? _assistantPopup;
+    private DateTimeOffset _lastAssistantPopup = DateTimeOffset.MinValue;
+    private readonly HashSet<string> _assistantUpdateVersions = new(StringComparer.Ordinal);
     private IReadOnlyList<Peripheral> _snapshot = Array.Empty<Peripheral>();
     private readonly ToolStripMenuItem _startupToggle;
 
@@ -140,11 +144,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 {
                     var release = await UpdateClient.CheckAsync(_updateLifetime.Token);
                     if (!_closing && release != null)
-                        _tray.ShowBalloonTip(5000, "Battery Monitor", T("Доступна версия:") + " " + release.Version + " — " + T("Откройте настройки обновлений."), ToolTipIcon.Info);
+                    {
+                        var notice = BatteryAssistant.Update(release.Version);
+                        if (_assistantUpdateVersions.Add(notice.Message) && !_assistant.Recent.Any(n => n.Kind == AssistantKind.Update && n.Message == notice.Message))
+                        {
+                            _assistant.Record(notice);
+                            PresentAssistantNotice(notice);
+                        }
+                        if (!AssistantPreferences.Quiet)
+                            _tray.ShowBalloonTip(5000, "Battery Monitor", notice.Message + " — " + T("Откройте настройки обновлений."), ToolTipIcon.Info);
+                    }
                 }
                 catch { /* The manual check shows network errors; don't interrupt startup. */ }
             };
-            _tray.BalloonTipClicked += (_, _) => OpenSettings();
+            _tray.BalloonTipClicked += (_, _) => { OpenSettings(); if (_assistant.Latest is { Kind: AssistantKind.Update } notice) _settingsWindow?.OpenAssistantNotice(notice); };
             _updateTimer.Start();
         }
     }
@@ -161,8 +174,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (_settingsWindow is null || _settingsWindow.IsDisposed)
         {
             _settingsWindow = new SettingsWindow(_settings, StartupSettings.IsConfigured(),
-                ApplySettings, RefreshDevicesAsync, SaveDiagnostics, InstallUpdate);
+                ApplySettings, RefreshDevicesAsync, SaveDiagnostics, InstallUpdate, _assistant);
             _settingsWindow.Show();
+            if (_assistant.Latest is { } latest) _settingsWindow.ShowAssistantNotice(latest, false);
         }
         if (_settingsWindow.WindowState == FormWindowState.Minimized)
             _settingsWindow.WindowState = FormWindowState.Normal;
@@ -183,10 +197,34 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _ = RefreshDevicesAsync();
     }
 
+    private void PresentAssistantNotice(AssistantNotice notice)
+    {
+        if (_closing) return;
+        bool open = _settingsWindow is { IsDisposed: false, Visible: true } window &&
+            window.WindowState != FormWindowState.Minimized;
+        if (_settingsWindow is { IsDisposed: false } settings) settings.ShowAssistantNotice(notice, open);
+        if (open || !notice.Urgent || AssistantPreferences.Quiet || !AssistantPreferences.Desktop ||
+            !DomovoiPreferences.LoadEnabled() || DateTimeOffset.UtcNow - _lastAssistantPopup < TimeSpan.FromMinutes(2)) return;
+        try
+        {
+            _assistantPopup?.Close();
+            _assistantPopup = new AssistantPopup(notice, () =>
+            {
+                OpenSettings();
+                _settingsWindow?.OpenAssistantNotice(notice);
+            });
+            _assistantPopup.Show();
+            _lastAssistantPopup = DateTimeOffset.UtcNow;
+        }
+        catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); _assistantPopup?.Dispose(); _assistantPopup = null; }
+    }
+
     private async Task RefreshDevicesAsync()
     {
         if (_refreshing || _closing) return;
         _refreshing = true;
+        bool complete = true;
+        AssistantNotice? notice = null;
         _statusMenu.Text = T("USB/HID сканирование...");
         _settingsWindow?.SetSnapshot(_snapshot, _statusMenu.Text ?? string.Empty, true);
         try
@@ -210,7 +248,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 devices.AddRange(bt);
                 diagnostics.AppendLine($"Bluetooth connected: {bt.Count}; known batteries: {bt.Count(d => d.BatteryPercent.HasValue)}");
             }
-            catch (Exception ex) { diagnostics.AppendLine($"Bluetooth scan unavailable: {ex.GetType().Name}"); }
+            catch (Exception ex) { complete = false; diagnostics.AppendLine($"Bluetooth scan unavailable: {ex.GetType().Name}"); }
             try
             {
                 var pads = GameControllerBatteryProvider.Scan();
@@ -222,7 +260,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 }
                 diagnostics.AppendLine($"Windows game controller batteries: {pads.Count}");
             }
-            catch (Exception ex) { diagnostics.AppendLine($"Game controller scan unavailable: {ex.GetType().Name}"); }
+            catch (Exception ex) { complete = false; diagnostics.AppendLine($"Game controller scan unavailable: {ex.GetType().Name}"); }
             diagnostics.AppendLine("G435: receiver presence is NOT headset battery/status. No HID commands sent to G435.");
             diagnostics.AppendLine("G435 manual LED reading: " +
                 (_g435Reading is { IsFresh: true } manual ? manual.RangeLabel + " (manual)" : "none/currently stale"));
@@ -258,11 +296,18 @@ internal sealed class TrayApplicationContext : ApplicationContext
             UpdateDeviceMenu(entries);
             UpdateIndicators();
             UpdateWidgetMenu();
+            try
+            {
+                var events = _assistant.Observe(_snapshot, DateTimeOffset.UtcNow, complete);
+                if (events.Count > 0) notice = _assistant.Latest;
+            }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); }
 
         }
         catch (Exception ex)
         {
             if (_closing) return;
+            _assistant.InvalidateHistory();
             _snapshot = Array.Empty<Peripheral>();
             _statusMenu.Text = T("Ошибка USB-сканирования");
             _diagnostics = "Scan error: " + ex.GetType().Name;
@@ -273,7 +318,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         finally
         {
             _refreshing = false;
-            if (!_closing) _settingsWindow?.SetSnapshot(_snapshot, _statusMenu.Text ?? string.Empty, false);
+            if (!_closing)
+            {
+                _settingsWindow?.SetSnapshot(_snapshot, _statusMenu.Text ?? string.Empty, false);
+                if (notice != null) PresentAssistantNotice(notice);
+            }
         }
     }
 
@@ -449,6 +498,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     protected override void ExitThreadCore()
     {
         _closing = true;
+        _assistantPopup?.Dispose(); _assistantPopup = null;
         _updateTimer?.Stop(); _updateTimer?.Dispose();
         _updateLifetime.Cancel(); _updateLifetime.Dispose();
         _settingsWindow?.Dispose();

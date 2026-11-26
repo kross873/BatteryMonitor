@@ -56,6 +56,19 @@ internal sealed class AppearancePage : UserControl
         _domovoiEnabled = new CheckBox { Text = T("Показывать домового в окне программы"), AutoSize = true, Checked = DomovoiPreferences.LoadEnabled() };
         outer.Controls.Add(_domovoiEnabled);
         outer.Controls.Add(new Label { Text = T("Перетаскивайте домового мышью. Правый клик — скрыть или вернуть на место."), AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = SettingsWindow.Muted });
+        outer.Controls.Add(new Label { Text = T("Помощник domovoi"), AutoSize = true, Margin = new Padding(3, 18, 3, 5), Font = new Font("Segoe UI Semibold", 15f, FontStyle.Bold) });
+        var quiet = new CheckBox { Text = T("Не беспокоить"), AutoSize = true, Checked = AssistantPreferences.Quiet };
+        var desktop = new CheckBox { Text = T("Предупреждения домового вне окна"), AutoSize = true, Checked = AssistantPreferences.Desktop };
+        outer.Controls.Add(quiet); outer.Controls.Add(desktop);
+        outer.Controls.Add(new Label { Text = T("Предупреждения вне окна выключены по умолчанию. История заряда хранится только до выхода."), AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = SettingsWindow.Muted });
+        void SaveAssistant(CheckBox box, string name)
+        {
+            try { AssistantPreferences.Write(name, box.Checked); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "domovoi"); }
+        }
+        quiet.CheckedChanged += (_, _) => SaveAssistant(quiet, "AssistantQuiet");
+        desktop.CheckedChanged += (_, _) => SaveAssistant(desktop, "AssistantDesktop");
+        VisibleChanged += (_, _) => { if (Visible) { quiet.Checked = AssistantPreferences.Quiet; desktop.Checked = AssistantPreferences.Desktop; } };
         _domovoiEnabled.CheckedChanged += (_, _) => DomovoiEnabledChanged?.Invoke(this, EventArgs.Empty);
         _enabled.CheckedChanged += (_, _) => { _fields.Enabled = _enabled.Checked; reset.Enabled = _enabled.Checked; UpdatePreview(); };
         foreach (var c in new[] { _style, _icon, _color, _weight, _font, _iconSize }) c.SelectedIndexChanged += (_, _) => UpdatePreview();

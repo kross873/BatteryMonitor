@@ -21,6 +21,24 @@ internal sealed class DomovoiPet : Control
     private bool _signPressMoved;
     private Point? _perchTarget;
     internal Func<Point?>? FindPerch { get; set; }
+    private Func<Point?>? _assistantTarget;
+    private Action? _batterySignClick;
+    private string _batterySignText = "";
+    internal void AddAssistantMenu(ToolStripMenuItem item) => _menu.Items.Insert(0, item);
+    internal bool ReactToAssistant(AssistantNotice notice, Action open, Func<Point?>? target = null, bool requested = false)
+    {
+        if (_disposed || !Visible || _dragging || _menu.Visible || _renderFailed ||
+            (!requested && (_hover || _actionRemaining > 0 || _happy > 0 || _dizzy > 0))) return false;
+        if (notice.Urgent && notice.Percent.HasValue)
+        {
+            StartAction(DomovoiMood.BatterySign, 9);
+            _batterySignText = notice.Percent.Value + "%";
+            _batterySignClick = open;
+        }
+        else StartAction(notice.Mood, 3.5);
+        if (target != null && target().HasValue) _assistantTarget = target;
+        return true;
+    }
     private bool _poseReady;
     private DomovoiMood _actionMood = DomovoiMood.Idle;
     private double _actionRemaining, _actionElapsed, _nextIdleAction = 7, _walkElapsed;
@@ -140,7 +158,7 @@ internal sealed class DomovoiPet : Control
             var g = _surface.Graphics;
             g.Clear(Color.Transparent);
             double signAmount = DomovoiSign.IsSign(Mood) ? DomovoiSign.Reveal(_actionElapsed,_actionRemaining) : 0;
-            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY, signAmount);
+            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY, signAmount, _batterySignText);
             _surface.Present(Handle);
             _renderedPose = pose; _renderedAngle = _angle; _renderedFacing = _facing;
             _lastMood = Mood;
@@ -214,7 +232,7 @@ internal sealed class DomovoiPet : Control
             FinishDrag();
             StopWalk();
             ClearRotation();
-            _actionRemaining = 0; _poseReady = false; _perchTarget = null;
+            _actionRemaining = 0; _poseReady = false; _perchTarget = null; _assistantTarget = null; _batterySignClick = null;
             _signPressed = DomovoiMood.Idle; _renderedSignAmount = 0;
             Capture = false;
             _animation.Stop();
@@ -250,8 +268,9 @@ internal sealed class DomovoiPet : Control
         StopWalk(); Wake();
         _happy = _dizzy = 0;
         _perchTarget = null;
+        _assistantTarget = null; _batterySignClick = null;
         _actionMood = mood; _actionRemaining = seconds; _actionElapsed = 0;
-        if (DomovoiSign.IsSign(mood)) _nextSignTime = _time + 120;
+        if (DomovoiSign.IsSign(mood) && mood != DomovoiMood.BatterySign) _nextSignTime = _time + 120;
     }
 
     private void ClearRotation()
@@ -273,7 +292,7 @@ internal sealed class DomovoiPet : Control
     {
         StopWalk();
         ClearRotation();
-        _actionRemaining = 0; _perchTarget = null;
+        _actionRemaining = 0; _perchTarget = null; _assistantTarget = null; _batterySignClick = null;
         Wake();
         _relativeX = DomovoiPreferences.DefaultX;
         _relativeY = DomovoiPreferences.DefaultY;
@@ -319,6 +338,21 @@ internal sealed class DomovoiPet : Control
             bool holdSign = DomovoiSign.IsSign(_actionMood) && DomovoiSign.IsSign(_signPressed);
             if (!holdSign) _actionRemaining = Math.Max(0, _actionRemaining - dt);
             _actionElapsed += dt;
+        }
+        if (Mood == DomovoiMood.BatterySign && _actionRemaining <= 0) _batterySignClick = null;
+        if (_assistantTarget != null)
+        {
+            var target = _assistantTarget();
+            if (_dragging || _hover || _actionRemaining <= 0 || !target.HasValue)
+            {
+                _assistantTarget = null;
+                if (_actionRemaining <= 0) _batterySignClick = null;
+            }
+            else
+            {
+                double ease = 1 - Math.Exp(-5 * dt);
+                MoveTo(_x + (target.Value.X - _x) * ease, _y + (target.Value.Y - _y) * ease);
+            }
         }
         if (_perchTarget.HasValue)
         {
@@ -496,6 +530,7 @@ internal sealed class DomovoiPet : Control
 
     private void OpenSign(DomovoiMood mood)
     {
+        if (mood == DomovoiMood.BatterySign) { _batterySignClick?.Invoke(); return; }
         string? url = DomovoiSign.Url(mood);
         if (url == null) return;
         try
@@ -522,7 +557,7 @@ internal sealed class DomovoiPet : Control
         StopWalk();
         Wake();
         _dizzy = _happy = _actionRemaining = 0;
-        _perchTarget = null;
+        _perchTarget = null; _assistantTarget = null; _batterySignClick = null;
         _rig.Reset();
         _basePose = _pose = _renderedPose; _poseReady = true;
         _grip = DomovoiArt.Grab(e.Location, Width, Height, _renderedAngle, _renderedFacing, _renderedPose);

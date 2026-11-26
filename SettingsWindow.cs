@@ -11,6 +11,13 @@ internal sealed class SettingsWindow : Form
     private string _cardSignature = "";
     private readonly AppearancePage _appearance;
     private readonly DomovoiPet _domovoi;
+    private readonly BatteryAssistant _assistant;
+    private IReadOnlyList<Peripheral> _assistantDevices = Array.Empty<Peripheral>();
+    private readonly Label _assistantLabel;
+    private readonly Button _assistantOpen;
+    private readonly Action<int> _assistantSelect;
+    private readonly Func<string, Point?> _assistantTarget;
+    private AssistantNotice? _assistantNotice;
     private readonly Label _status, _saveStatus;
     private readonly ComboBox _interval, _theme, _language;
     private readonly string[] _themes = ["system", "light", "dark"];
@@ -36,9 +43,10 @@ internal sealed class SettingsWindow : Form
     private static Color Line => Dark ? Color.FromArgb(77, 61, 101) : Color.FromArgb(213, 198, 231);
 
     public SettingsWindow(MonitorSettings settings, bool startup,
-        Action<MonitorSettings, bool> apply, Func<Task> refresh, Action diagnostics, Action<string, UpdateRelease> installUpdate)
+        Action<MonitorSettings, bool> apply, Func<Task> refresh, Action diagnostics, Action<string, UpdateRelease> installUpdate, BatteryAssistant? assistant = null)
     {
         _apply = apply;
+        _assistant = assistant ?? new BatteryAssistant();
         Dark = Active.IsDark();
         HandleCreated += (_, _) => SetTitleBar(this);
         // The executable icon is already embedded by the project.
@@ -52,10 +60,11 @@ internal sealed class SettingsWindow : Form
         MinimumSize = new Size(900, 690);
         BackColor = Canvas;
         ForeColor = Ink;
-        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, BackColor = Canvas, Margin = Padding.Empty };
+        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, BackColor = Canvas, Margin = Padding.Empty };
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218));
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
         shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
         Controls.Add(shell);
         var sidebar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Sidebar, Padding = new Padding(14), Margin = Padding.Empty };
@@ -63,7 +72,7 @@ internal sealed class SettingsWindow : Form
         sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 108));
         sidebar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));
-        shell.Controls.Add(sidebar, 0, 0); shell.SetRowSpan(sidebar, 2);
+        shell.Controls.Add(sidebar, 0, 0); shell.SetRowSpan(sidebar, 3);
         var brand = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, BackColor = Sidebar };
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45)); brand.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var logo = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 12, 5, 40) };
@@ -139,6 +148,7 @@ internal sealed class SettingsWindow : Form
         updatesTab.Click += (_, _) => SelectPage(2);
         compatibilityTab.Click += (_, _) => SelectPage(3);
         SelectPage(0);
+        _assistantSelect = SelectPage;
 
         var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty, BackColor = Canvas };
         header.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
@@ -170,6 +180,34 @@ internal sealed class SettingsWindow : Form
             }
             return null;
         };
+
+        _assistantTarget = key =>
+        {
+            if (!layout.Visible || !_devices.IsHandleCreated || !pages.IsHandleCreated) return null;
+            var card = _devices.Controls.Cast<Control>().FirstOrDefault(c => string.Equals(c.Tag as string, key, StringComparison.Ordinal));
+            if (card == null || !card.Visible || !card.IsHandleCreated) return null;
+            var viewport = pages.RectangleToClient(_devices.RectangleToScreen(_devices.ClientRectangle));
+            var bounds = pages.RectangleToClient(card.RectangleToScreen(card.ClientRectangle));
+            if (!viewport.Contains(bounds)) return null;
+            return new Point(Math.Clamp(bounds.Right - _domovoi.Width / 2, 0, Math.Max(0, pages.ClientSize.Width - _domovoi.Width)),
+                Math.Clamp(bounds.Bottom - _domovoi.Height, 0, Math.Max(0, pages.ClientSize.Height - _domovoi.Height)));
+        };
+        var assistantMenu = new ToolStripMenuItem(T("Помощник domovoi"));
+        assistantMenu.DropDownItems.Add(T("Заряд устройств и прогноз"), null, (_, _) => ShowAssistantSummary());
+        assistantMenu.DropDownItems.Add(T("Обновить сейчас"), null, async (_, _) => await refresh());
+        assistantMenu.DropDownItems.Add(T("Оформление виджета"), null, (_, _) => SelectPage(1));
+        assistantMenu.DropDownItems.Add(T("Проверить обновления"), null, async (_, _) => { SelectPage(2); await updates.RequestCheckAsync(); });
+        assistantMenu.DropDownItems.Add(T("Сохранить диагностику"), null, (_, _) => diagnostics());
+        assistantMenu.DropDownItems.Add(T("Совместимость"), null, (_, _) => SelectPage(3));
+        var quiet = new ToolStripMenuItem(T("Не беспокоить")) { CheckOnClick = true, Checked = AssistantPreferences.Quiet };
+        quiet.CheckedChanged += (_, _) =>
+        {
+            try { AssistantPreferences.Write("AssistantQuiet", quiet.Checked); _domovoi.SetLowBattery(!quiet.Checked && _assistantDevices.Any(d => d.Connected && d.BatteryPercent is >= 0 and <= 20)); }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, "domovoi"); }
+        };
+        assistantMenu.DropDownOpening += (_, _) => { if (quiet.Checked != AssistantPreferences.Quiet) quiet.Checked = AssistantPreferences.Quiet; };
+        assistantMenu.DropDownItems.Add(quiet);
+        _domovoi.AddAssistantMenu(assistantMenu);
 
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty, BackColor = Canvas };
         _refresh = MakeButton(T("↻  Обновить сейчас"), 185);
@@ -207,14 +245,74 @@ internal sealed class SettingsWindow : Form
         group.Controls.Add(options); layout.Controls.Add(group, 0, 3);
         layout.Controls.Add(new Label { Dock = DockStyle.Fill, Text = T("Выбор устройств — через меню значка в трее. Внешний вид — во вкладке «Оформление»."), Font = _small, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft }, 0, 4);
 
+        var assistantCard = new CardPanel { Dock = DockStyle.Fill, Margin = new Padding(24,4,24,0), Padding = new Padding(12,7,12,7) };
+        var assistantLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Surface, Margin = Padding.Empty };
+        assistantLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        assistantLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        assistantLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 115));
+        _assistantLabel = new Label { Text = "domovoi  /  " + T("Заряд устройств и прогноз"), Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Ink, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty };
+        _assistantOpen = MakeButton(T("Показать"), 110, true); _assistantOpen.Dock = DockStyle.Fill; _assistantOpen.Enabled = false;
+        _assistantOpen.Click += (_, _) => { if (_assistantNotice is { } notice) OpenAssistantNotice(notice); };
+        var details = MakeButton(T("Подробнее"), 110); details.Dock = DockStyle.Fill; details.Click += (_, _) => ShowAssistantSummary();
+        assistantLayout.Controls.Add(_assistantLabel, 0, 0); assistantLayout.Controls.Add(_assistantOpen, 1, 0); assistantLayout.Controls.Add(details, 2, 0);
+        assistantCard.Controls.Add(assistantLayout); shell.Controls.Add(assistantCard, 1, 1);
+        updates.ReleaseFound += version =>
+        {
+            var notice = BatteryAssistant.Update(version);
+            if (_assistant.Recent.Any(n => n.Kind == AssistantKind.Update && n.Message == notice.Message)) return;
+            _assistant.Record(notice); ShowAssistantNotice(notice, true);
+        };
+
         var footer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = Padding.Empty, Padding = new Padding(0, 8, 0, 0) };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140)); footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
         _saveStatus = new Label { Dock = DockStyle.Fill, Text = T("Настройки сохраняются локально"), Font = _small, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
         var save = MakeButton(T("Применить"), 130, true); save.Dock = DockStyle.Fill; save.Click += (_, _) => Apply();
         var close = MakeButton(T("Закрыть"), 110); close.Dock = DockStyle.Fill; close.Click += (_, _) => Close();
-        footer.Controls.Add(_saveStatus, 0, 0); footer.Controls.Add(save, 1, 0); footer.Controls.Add(close, 2, 0); footer.Margin = new Padding(24,0,24,12); shell.Controls.Add(footer, 1, 1);
+        footer.Controls.Add(_saveStatus, 0, 0); footer.Controls.Add(save, 1, 0); footer.Controls.Add(close, 2, 0); footer.Margin = new Padding(24,0,24,12); shell.Controls.Add(footer, 1, 2);
         AcceptButton = save; CancelButton = close;
         Shown += (_, _) => { _domovoi.RestorePosition(); _domovoi.BringToFront(); };
+    }
+
+    internal void ShowAssistantNotice(AssistantNotice notice, bool animate)
+    {
+        if (IsDisposed || Disposing) return;
+        _assistantNotice = notice;
+        _assistantLabel.Text = T("Последнее событие:") + " " + notice.Message;
+        _assistantLabel.ForeColor = notice.Urgent ? Low : Ink;
+        _assistantOpen.Enabled = true;
+        if (animate && !AssistantPreferences.Quiet && Visible && WindowState != FormWindowState.Minimized)
+        {
+            Func<Point?>? target = notice.DeviceKey is string key && notice.Urgent ? () => _assistantTarget(key) : null;
+            _domovoi.ReactToAssistant(notice, () => OpenAssistantNotice(notice), target);
+        }
+    }
+
+    internal void OpenAssistantNotice(AssistantNotice notice)
+    {
+        if (IsDisposed || Disposing) return;
+        _assistantSelect((int)notice.Destination);
+        foreach (var card in _devices.Controls.OfType<CardPanel>()) { card.Emphasized = false; card.Invalidate(); }
+        if (notice.Destination == AssistantDestination.Devices && notice.DeviceKey is string key)
+        {
+            var card = _devices.Controls.OfType<CardPanel>().FirstOrDefault(c => string.Equals(c.Tag as string, key, StringComparison.Ordinal));
+            if (card != null)
+            {
+                _devices.ScrollControlIntoView(card);
+                card.Emphasized = true; card.Invalidate();
+                // Explicit navigation may move the mascot; the user can disable autonomous reactions.
+                _domovoi.ReactToAssistant(notice with { Kind = AssistantKind.Info }, () => { }, () => _assistantTarget(key), true);
+            }
+        }
+    }
+
+    private void ShowAssistantSummary()
+    {
+        using var dialog = new Form { Text = "domovoi — " + T("Заряд устройств и прогноз"), StartPosition = FormStartPosition.CenterParent, Size = new Size(650, 540), MinimumSize = new Size(420, 300), BackColor = Canvas, ForeColor = Ink, ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.Font, Font = Font };
+        var report = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, WordWrap = true, ScrollBars = ScrollBars.Vertical, BackColor = Surface, ForeColor = Ink, Text = _assistant.Summary(_assistantDevices) };
+        var bottom = MakeButton(T("Закрыть"), 120); bottom.Dock = DockStyle.Bottom; bottom.DialogResult = DialogResult.OK;
+        dialog.Controls.Add(report); dialog.Controls.Add(bottom); dialog.CancelButton = bottom;
+        dialog.HandleCreated += (_, _) => SetTitleBar(dialog);
+        dialog.ShowDialog(this);
     }
 
     internal static Button MakeButton(string text, int width, bool primary = false)
@@ -261,6 +359,7 @@ internal sealed class SettingsWindow : Form
 
     internal sealed class CardPanel : Panel
     {
+        internal bool Emphasized { get; set; }
         public CardPanel() { BackColor = Surface; DoubleBuffered = true; }
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -269,7 +368,7 @@ internal sealed class SettingsWindow : Form
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.Clear(Parent?.BackColor ?? Canvas);
             using var shape = Rounded(new Rectangle(0, 0, Width - 1, Height - 1), Math.Min(Math.Min(Width, Height) / 2 - 1, Math.Max(8, DeviceDpi * 14 / 96)));
-            using var fill = new SolidBrush(Surface); using var pen = new Pen(Line);
+            using var fill = new SolidBrush(Surface); using var pen = new Pen(Emphasized ? Accent : Line, Emphasized ? 2 : 1);
             e.Graphics.FillPath(fill, shape); e.Graphics.DrawPath(pen, shape);
         }
     }
@@ -390,8 +489,9 @@ internal sealed class SettingsWindow : Form
     public void SetSnapshot(IReadOnlyList<Peripheral> devices, string status, bool refreshing)
     {
         if (IsDisposed || Disposing) return;
+        _assistantDevices = devices;
         _status.Text = status; _refresh.Enabled = !refreshing;
-        _domovoi.SetLowBattery(devices.Any(d => d.Connected && d.BatteryPercent is >= 0 and <= 20));
+        _domovoi.SetLowBattery(!AssistantPreferences.Quiet && devices.Any(d => d.Connected && d.BatteryPercent is >= 0 and <= 20));
         _compatibilitySummary.Text = T("Обнаружено устройств:") + " " + devices.Count + "  ·  " + T("Заряд доступен:") + " " + devices.Count(d => d.BatteryPercent is >= 0 and <= 100);
         var signature = string.Join("\n", devices.Select(d => d.Key + "|" + d.Name + "|" + d.BatteryPercent + "|" + d.Connected));
         if (_cardSignature == signature && _devices.Controls.Count > 0) return;
@@ -406,7 +506,8 @@ internal sealed class SettingsWindow : Form
                 string name = device.Name == "AJAZZ wireless mouse (3151:5007)" ? "AJAZZ AJ179 APEX" : T(device.Name);
                 int? percent = device.BatteryPercent is >= 0 and <= 100 ? device.BatteryPercent : null;
                 string state = receiver ? T("Приёмник найден") : device.Key.StartsWith("hid:") ? T("HID обнаружен") : device.Connected ? T("Подключено") : T("Не подключено");
-                _devices.Controls.Add(CreateDeviceCard(name, state, percent));
+                var card = CreateDeviceCard(name, state, percent); card.Tag = device.Key;
+                _devices.Controls.Add(card);
             }
             if (devices.Count == 0) _devices.Controls.Add(CreateDeviceCard(T("Нет данных об устройствах"), "", null));
             ResizeDeviceCards();

@@ -15,6 +15,8 @@ internal sealed class UpdatePage : Panel
     private readonly Action<string, UpdateRelease> _install;
     private UpdateRelease? _release;
     private bool _busy;
+    internal event Action<string>? ReleaseFound;
+    internal Task RequestCheckAsync() => UpdateClient.IsConfigured ? CheckAsync() : Task.CompletedTask;
 
     internal UpdatePage(Action<string, UpdateRelease> install)
     {
@@ -85,6 +87,7 @@ internal sealed class UpdatePage : Panel
             var release = await UpdateClient.CheckAsync(_lifetime.Token);
             if (IsDisposed || Disposing) return;
             _release = release;
+            if (release != null) ReleaseFound?.Invoke(release.Version);
             RefreshLastCheck();
             _notes.Text = release == null ? T("Нет доступного обновления.") : string.IsNullOrWhiteSpace(release.Notes) ? T("Описание изменений не предоставлено.") : release.Notes;
             _status.Text = release == null ? T("Установлена актуальная версия.") : T("Доступна версия:") + " " + release.Version + $" ({release.Size / 1048576.0:F1} MB)";

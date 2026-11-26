@@ -5,7 +5,7 @@ namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
-internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched, GitHubSign, TikTokSign, TelegramSign }
+internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried, Petting, Wave, Dance, Stretch, Annoyed, Sitting, Tea, Coding, Perched, GitHubSign, TikTokSign, TelegramSign, BatterySign }
 
 internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot, Hat, Beard }
 internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
@@ -101,7 +101,7 @@ internal static class DomovoiArt
             DomovoiMood.Sitting or DomovoiMood.Perched => pose with { Bob = 15, LeftLeg = 65, RightLeg = -65, LeftArm = -10, RightArm = 10, Head = 3 },
             DomovoiMood.Tea => pose with { Bob = 12, LeftLeg = 50, RightLeg = -50, LeftArm = -9, RightArm = -42 - 25 * (float)(.5 + .5 * Math.Sin(actionTime * 2.1)), Head = 6 },
             DomovoiMood.Coding => pose with { Bob = 14, LeftLeg = 52, RightLeg = -52, LeftArm = -23 + w * 4, RightArm = 23 + w * 4, Head = 7 + w * 1.3f },
-            DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign => pose with { LeftArm = 38, RightArm = -38, Head = -3, Bob = -2 },
+            DomovoiMood.GitHubSign or DomovoiMood.TikTokSign or DomovoiMood.TelegramSign or DomovoiMood.BatterySign => pose with { LeftArm = 38, RightArm = -38, Head = -3, Bob = -2 },
             _ => pose
         };
     }
@@ -192,7 +192,7 @@ internal static class DomovoiArt
         return (Math.Atan2(ay, ax) - Math.Atan2(dy, dx)) * 180 / Math.PI;
     }
 
-    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing, float lookX = 0, float lookY = 0, double signAmount = 0)
+    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing, float lookX = 0, float lookY = 0, double signAmount = 0, string batteryText = "")
     {
         var state = g.Save();
         try
@@ -200,7 +200,7 @@ internal static class DomovoiArt
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             float scale = ScaleFor(width,height);
-            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood is DomovoiMood.Happy or DomovoiMood.Petting or DomovoiMood.Dance or DomovoiMood.Wave || DomovoiSign.IsSign(mood);
+            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood is DomovoiMood.Happy or DomovoiMood.Petting or DomovoiMood.Dance or DomovoiMood.Wave || (DomovoiSign.IsSign(mood) && mood != DomovoiMood.BatterySign);
             g.TranslateTransform(width / 2f, height / 2f);
             g.RotateTransform((float)angle);
             g.ScaleTransform(scale * facing, scale);
@@ -297,12 +297,12 @@ internal static class DomovoiArt
             {
                 Draw("M 124 169 L 150 194 M 150 169 L 124 194 M 210 169 L 236 194 M 236 169 L 210 194", -1, 0xf4eaff, 6);
             }
-            else if (held || mood == DomovoiMood.Worried)
+            else if (held || mood is DomovoiMood.Worried or DomovoiMood.BatterySign)
             {
                 Ellipse(130, 166, 15, 25, 0xf3eaff, sw: 0);
                 Ellipse(216, 166, 15, 25, 0xf3eaff, sw: 0);
                 Draw("M 119 161 L 151 156 M 209 156 L 241 161", -1,
-                    mood == DomovoiMood.Worried ? 0xf2b7b7 : 0xf4eaff, 5);
+                    mood is DomovoiMood.Worried or DomovoiMood.BatterySign ? 0xf2b7b7 : 0xf4eaff, 5);
             }
             else if (mood == DomovoiMood.Annoyed)
             {
@@ -322,7 +322,7 @@ internal static class DomovoiArt
             g.Restore(eyeState);
             g.Restore(head);
             if (DomovoiSign.IsSign(mood) && signAmount > .02)
-                DomovoiSign.Paint(g, pose, mood, facing, signAmount);
+                DomovoiSign.Paint(g, pose, mood, facing, signAmount, batteryText);
         }
         finally { g.Restore(state); }
     }
