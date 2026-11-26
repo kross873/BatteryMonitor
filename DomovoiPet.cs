@@ -15,6 +15,10 @@ internal sealed class DomovoiPet : Control
     private DomovoiPose _renderedPose, _pose, _basePose;
     private readonly DomovoiRig _rig = new();
     private float _lookX, _lookY;
+    private double _renderedSignAmount, _nextSignTime = 55;
+    private DomovoiMood _signPressed = DomovoiMood.Idle;
+    private Point _signPressPoint;
+    private bool _signPressMoved;
     private Point? _perchTarget;
     internal Func<Point?>? FindPerch { get; set; }
     private bool _poseReady;
@@ -98,6 +102,10 @@ internal sealed class DomovoiPet : Control
             }
         };
         actions.DropDownItems.Add(perch);
+        actions.DropDownItems.Add(new ToolStripSeparator());
+        actions.DropDownItems.Add(T("Показать GitHub"), null, (_, _) => StartAction(DomovoiMood.GitHubSign, 9));
+        actions.DropDownItems.Add(T("Показать TikTok"), null, (_, _) => StartAction(DomovoiMood.TikTokSign, 9));
+        actions.DropDownItems.Add(T("Показать Telegram"), null, (_, _) => StartAction(DomovoiMood.TelegramSign, 9));
         actions.DropDownOpening += (_, _) => perch.Enabled = FindPerch?.Invoke() != null;
         _menu.Items.Add(actions);
         _menu.Items.Add(T("Скрыть домового"), null, (_, _) => HideRequested?.Invoke(this, EventArgs.Empty));
@@ -131,10 +139,12 @@ internal sealed class DomovoiPet : Control
             if (_dragging) PositionAtGrip(pose);
             var g = _surface.Graphics;
             g.Clear(Color.Transparent);
-            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY);
+            double signAmount = DomovoiSign.IsSign(Mood) ? DomovoiSign.Reveal(_actionElapsed,_actionRemaining) : 0;
+            DomovoiArt.Paint(g, Width, Height, _time, _angle, pose, Mood, _facing, _lookX, _lookY, signAmount);
             _surface.Present(Handle);
             _renderedPose = pose; _renderedAngle = _angle; _renderedFacing = _facing;
             _lastMood = Mood;
+            _renderedSignAmount = signAmount;
         }
         catch (Exception ex)
         {
@@ -205,6 +215,8 @@ internal sealed class DomovoiPet : Control
             StopWalk();
             ClearRotation();
             _actionRemaining = 0; _poseReady = false; _perchTarget = null;
+            _signPressed = DomovoiMood.Idle; _renderedSignAmount = 0;
+            Capture = false;
             _animation.Stop();
         }
     }
@@ -239,6 +251,7 @@ internal sealed class DomovoiPet : Control
         _happy = _dizzy = 0;
         _perchTarget = null;
         _actionMood = mood; _actionRemaining = seconds; _actionElapsed = 0;
+        if (DomovoiSign.IsSign(mood)) _nextSignTime = _time + 120;
     }
 
     private void ClearRotation()
@@ -303,7 +316,8 @@ internal sealed class DomovoiPet : Control
         _time += dt;
         if (_actionRemaining > 0)
         {
-            _actionRemaining = Math.Max(0, _actionRemaining - dt);
+            bool holdSign = DomovoiSign.IsSign(_actionMood) && DomovoiSign.IsSign(_signPressed);
+            if (!holdSign) _actionRemaining = Math.Max(0, _actionRemaining - dt);
             _actionElapsed += dt;
         }
         if (_perchTarget.HasValue)
@@ -394,6 +408,18 @@ internal sealed class DomovoiPet : Control
         if (_wander && !_dragging && !_walking && !_hover && !_menu.Visible &&
             _actionRemaining <= 0 && _happy <= 0 && _dizzy <= 0 && _idle >= _nextIdleAction && _idle < 45)
         {
+            if (_time >= _nextSignTime && Random.Shared.Next(5) == 0)
+            {
+                _actionMood = Random.Shared.Next(3) switch
+                {
+                    0 => DomovoiMood.GitHubSign, 1 => DomovoiMood.TikTokSign, _ => DomovoiMood.TelegramSign
+                };
+                _actionRemaining = 7.5;
+                _actionElapsed = 0;
+                _nextSignTime = _time + 120;
+            }
+            else
+            {
             _actionMood = Random.Shared.Next(6) switch
             {
                 0 => DomovoiMood.Stretch, 1 => DomovoiMood.Wave, 2 => DomovoiMood.Dance,
@@ -402,6 +428,7 @@ internal sealed class DomovoiPet : Control
             _actionRemaining = _actionMood is DomovoiMood.Tea or DomovoiMood.Coding or DomovoiMood.Sitting ? 5.5 :
                 _actionMood == DomovoiMood.Dance ? 3.2 : 2.4;
             _actionElapsed = 0;
+            }
             _nextIdleAction = _idle + 15 + Random.Shared.NextDouble() * 5;
         }
         var desired = DomovoiArt.ActionPose(_time,_limbSwing,Mood,_actionElapsed);
@@ -464,10 +491,34 @@ internal sealed class DomovoiPet : Control
         _strokeReady = false; _strokeDistance = 0; _strokeTurns = _strokeDirection = 0;
     }
 
+    private bool SignHit(Point point) => DomovoiSign.IsSign(_lastMood) &&
+        DomovoiSign.Hit(point, Width, Height, _renderedAngle, _renderedFacing, _renderedPose, _renderedSignAmount);
+
+    private void OpenSign(DomovoiMood mood)
+    {
+        string? url = DomovoiSign.Url(mood);
+        if (url == null) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(FindForm(), ex.Message, "Domovoi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
         if (e.Button != MouseButtons.Left || Parent == null) return;
+        if (SignHit(e.Location))
+        {
+            _signPressed = _lastMood;
+            _signPressPoint = MousePosition; _signPressMoved = false;
+            Capture = true;
+            return;
+        }
         StopWalk();
         Wake();
         _dizzy = _happy = _actionRemaining = 0;
@@ -493,6 +544,14 @@ internal sealed class DomovoiPet : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (DomovoiSign.IsSign(_signPressed))
+        {
+            var point = MousePosition;
+            if (Math.Abs(point.X - _signPressPoint.X) + Math.Abs(point.Y - _signPressPoint.Y) > 5 * DpiScale)
+                _signPressMoved = true;
+            return;
+        }
+        if (SignHit(e.Location)) return;
         if (_dragging)
         {
             if (Parent != null)
@@ -534,6 +593,17 @@ internal sealed class DomovoiPet : Control
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
+        if (e.Button == MouseButtons.Left && DomovoiSign.IsSign(_signPressed))
+        {
+            var mood = _signPressed;
+            var point = MousePosition;
+            bool open = !_signPressMoved && Math.Abs(point.X - _signPressPoint.X) + Math.Abs(point.Y - _signPressPoint.Y) <= 5 * DpiScale
+                && _lastMood == mood && SignHit(e.Location);
+            _signPressed = DomovoiMood.Idle;
+            Capture = false;
+            if (open) OpenSign(mood);
+            return;
+        }
         if (e.Button == MouseButtons.Left) FinishDrag();
         base.OnMouseUp(e);
     }
@@ -541,7 +611,7 @@ internal sealed class DomovoiPet : Control
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
         base.OnMouseDoubleClick(e);
-        if (e.Button != MouseButtons.Left) return;
+        if (e.Button != MouseButtons.Left || DomovoiSign.IsSign(_signPressed) || SignHit(e.Location)) return;
         FinishDrag();
         _dizzy = 0; _actionRemaining = 0; _happy = 2.2; Wake();
         RefreshPose();
@@ -550,7 +620,7 @@ internal sealed class DomovoiPet : Control
     protected override void OnMouseCaptureChanged(EventArgs e)
     {
         base.OnMouseCaptureChanged(e);
-        if (!Capture) FinishDrag();
+        if (!Capture) { _signPressed = DomovoiMood.Idle; FinishDrag(); }
     }
 
     internal void SetLowBattery(bool low)
