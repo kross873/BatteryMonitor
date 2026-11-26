@@ -1,13 +1,15 @@
 using System.Drawing.Drawing2D;
 using System.Globalization;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 namespace BatteryMonitor;
 
 // Vector model from the domovoi animated series (episodes 2–6).
 // Original 360-unit head/body artwork, with separate animated eyes and boots.
 internal enum DomovoiMood { Idle, Held, Walking, Dizzy, Happy, Sleepy, Worried }
+
+internal enum DomovoiPart { Body, Head, LeftHand, RightHand, LeftFoot, RightFoot }
+internal readonly record struct DomovoiGrip(DomovoiPart Part, PointF Point);
+internal readonly record struct DomovoiPose(float Bob, float LeftArm, float RightArm, float LeftLeg, float RightLeg, float Head);
 
 internal static class DomovoiArt
 {
@@ -56,66 +58,111 @@ internal static class DomovoiArt
         return path;
     }
 
-    // Build a hit region directly from the rendered alpha, so rotating
-    // limbs and the hat never get clipped by a fixed silhouette.
-    internal static Region Shape(Bitmap image)
+    private static readonly Dictionary<string, GraphicsPath> Paths = new();
+    private static GraphicsPath Cached(string d)
     {
-        var area = new Rectangle(0, 0, image.Width, image.Height);
-        var bits = image.LockBits(area, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-        using var path = new GraphicsPath(FillMode.Winding);
-        try
-        {
-            var row = new byte[image.Width * 4];
-            for (int y = 0; y < image.Height; y++)
-            {
-                Marshal.Copy(IntPtr.Add(bits.Scan0, y * bits.Stride), row, 0, row.Length);
-                int x = 0;
-                while (x < image.Width)
-                {
-                    while (x < image.Width && row[x * 4 + 3] < 96) x++;
-                    int left = x;
-                    while (x < image.Width && row[x * 4 + 3] >= 96) x++;
-                    if (x > left) path.AddRectangle(new Rectangle(left, y, x - left, 1));
-                }
-            }
-        }
-        finally { image.UnlockBits(bits); }
-        return new Region(path);
+        if (!Paths.TryGetValue(d, out var path)) Paths[d] = path = Path(d);
+        return path; // immutable after creation; UI thread only
     }
 
-    internal static Bitmap Render(int width, int height, double time, double angle,
-        double swing, DomovoiMood mood, int facing)
+    internal static float ScaleFor(int width, int height) => Math.Min(width, height) * .72f / 430f;
+    internal static DomovoiPose Pose(double time, double swing, DomovoiMood mood)
     {
-        var image = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-        try
-        {
-            using var g = Graphics.FromImage(image);
-            g.Clear(Color.Transparent);
-            Paint(g, width, height, time, angle, swing, mood, facing);
-            return image;
-        }
-        catch { image.Dispose(); throw; }
+        bool held = mood == DomovoiMood.Held, walking = mood == DomovoiMood.Walking;
+        bool sleepy = mood == DomovoiMood.Sleepy, happy = mood == DomovoiMood.Happy;
+        double wave = Math.Sin(time * (walking ? 12 : held ? 11 : 3));
+        float bob = held ? 0 : walking ? (float)(-Math.Abs(wave) * 10) : (float)(Math.Sin(time * 2.3) * (sleepy ? 2 : 4));
+        float kick = walking ? (float)(wave * 28) : held ? (float)(wave * 9 + swing * .35) : 0;
+        float arm = held ? (float)(swing * .65 + wave * 8) : walking ? (float)(wave * 16) : (float)(wave * 2);
+        return new(bob, happy ? 26 : arm, happy ? -30 : -arm, kick, -kick,
+            held ? (float)Math.Clamp(-swing * .18, -14, 14) : sleepy ? -7 : walking ? (float)(wave * 3) : 0);
     }
 
-    private static void Paint(Graphics g, int width, int height, double time, double angle, double swing, DomovoiMood mood, int facing)
+    private static (float X, float Y, float Angle) JointFor(DomovoiPart part, DomovoiPose pose) => part switch
+    {
+        DomovoiPart.Head => (180, 255, pose.Head),
+        DomovoiPart.LeftHand => (92, 283, pose.LeftArm),
+        DomovoiPart.RightHand => (268, 283, pose.RightArm),
+        DomovoiPart.LeftFoot => (145, 388, pose.LeftLeg),
+        DomovoiPart.RightFoot => (215, 388, pose.RightLeg),
+        _ => (0, 0, 0)
+    };
+
+    internal static PointF Rotate(PointF p, double angle)
+    {
+        double r = angle * Math.PI / 180, c = Math.Cos(r), s = Math.Sin(r);
+        return new((float)(p.X * c - p.Y * s), (float)(p.X * s + p.Y * c));
+    }
+
+    private static PointF JointPoint(PointF p, DomovoiPart part, DomovoiPose pose, bool inverse)
+    {
+        var joint = JointFor(part, pose);
+        var q = Rotate(new PointF(p.X - joint.X, p.Y - joint.Y), inverse ? -joint.Angle : joint.Angle);
+        return new(q.X + joint.X, q.Y + joint.Y);
+    }
+
+    internal static PointF ModelPoint(DomovoiGrip grip, DomovoiPose pose) => JointPoint(grip.Point, grip.Part, pose, false);
+
+    // Convert an actual painted pixel to the matching local bone coordinates.
+    // Both hit testing and rendering use the same transform and draw order.
+    internal static DomovoiGrip Grab(PointF pixel, int width, int height, double angle, int facing, DomovoiPose pose)
+    {
+        float scale = ScaleFor(width, height);
+        var q = Rotate(new PointF(pixel.X - width / 2f, pixel.Y - height / 2f), -angle);
+        var model = new PointF(q.X / (scale * facing) + 180, q.Y / scale + 215 - pose.Bob);
+        bool E(PointF p, float x, float y, float w, float h)
+        {
+            float dx = (p.X - x - w / 2) / (w / 2), dy = (p.Y - y - h / 2) / (h / 2);
+            return dx * dx + dy * dy <= 1.12f;
+        }
+        bool V(string d, PointF p) => Cached(d).IsVisible(p);
+        var h = JointPoint(model, DomovoiPart.Head, pose, true);
+        if (V(Hair,h) || V(Face,h) || V(Hat,h) || V(Brim,h)) return new(DomovoiPart.Head,h);
+        var right = JointPoint(model, DomovoiPart.RightHand, pose, true);
+        if (V(RightArm,right) || E(right,277,359,60,40)) return new(DomovoiPart.RightHand,right);
+        var left = JointPoint(model, DomovoiPart.LeftHand, pose, true);
+        if (V(LeftArm,left) || E(left,23,359,60,40)) return new(DomovoiPart.LeftHand,left);
+        if (V(Coat,model)) return new(DomovoiPart.Body,model);
+        var rf = JointPoint(model, DomovoiPart.RightFoot, pose, true);
+        if (E(rf,194,405,39,19) || V("M 200 381 L 226 381 225 408 199 408 Z",rf)) return new(DomovoiPart.RightFoot,rf);
+        var lf = JointPoint(model, DomovoiPart.LeftFoot, pose, true);
+        if (E(lf,127,405,39,19) || V("M 134 381 L 160 381 161 408 135 408 Z",lf)) return new(DomovoiPart.LeftFoot,lf);
+        return new(DomovoiPart.Body,model);
+    }
+
+    internal static PointF Offset(DomovoiGrip grip, DomovoiPose pose, int width, int height, double angle, int facing)
+    {
+        var p = ModelPoint(grip,pose);
+        float scale = ScaleFor(width,height);
+        return Rotate(new PointF((p.X - 180) * scale * facing, (p.Y - 215 + pose.Bob) * scale), angle);
+    }
+
+    internal static double HangingAngle(DomovoiGrip grip, DomovoiPose pose, int facing, double ax, double ay)
+    {
+        var p = ModelPoint(grip,pose);
+        // Approximate center of mass in torso coordinates. The vector from
+        // the grabbed point to the center aligns with effective gravity.
+        double dx = (180 - p.X) * facing, dy = 240 - p.Y;
+        if (dx * dx + dy * dy < 100) return 0;
+        return (Math.Atan2(ay, ax) - Math.Atan2(dy, dx)) * 180 / Math.PI;
+    }
+
+    internal static void Paint(Graphics g, int width, int height, double time, double angle, DomovoiPose pose, DomovoiMood mood, int facing)
     {
         var state = g.Save();
         try
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            float scale = Math.Min(width, height) * .72f / 430f;
-            bool held = mood == DomovoiMood.Held, walking = mood == DomovoiMood.Walking;
-            bool sleepy = mood == DomovoiMood.Sleepy, happy = mood == DomovoiMood.Happy;
-            double wave = Math.Sin(time * (walking ? 12 : held ? 15 : 3));
-            float bob = walking ? (float)(-Math.Abs(wave) * 10) : (float)(Math.Sin(time * 2.3) * (sleepy ? 2 : 4));
+            float scale = ScaleFor(width,height);
+            bool held = mood == DomovoiMood.Held, sleepy = mood == DomovoiMood.Sleepy, happy = mood == DomovoiMood.Happy;
             g.TranslateTransform(width / 2f, height / 2f);
             g.RotateTransform((float)angle);
             g.ScaleTransform(scale * facing, scale);
-            g.TranslateTransform(-180, -215 + bob);
+            g.TranslateTransform(-180, -215 + pose.Bob);
             void Draw(string d, int fill = -1, int stroke = 0x12121b, float sw = 5)
             {
-                using var path = Path(d);
+                var path = Cached(d);
                 if (fill >= 0) { using var brush = new SolidBrush(C(fill)); g.FillPath(brush, path); }
                 if (sw > 0) { using var pen = new Pen(C(stroke), sw) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round }; g.DrawPath(pen, path); }
             }
@@ -133,24 +180,22 @@ internal static class DomovoiArt
                 draw();
                 g.Restore(saved);
             }
-            float kick = walking ? (float)(wave * 28) : held ? (float)(wave * 15 + swing * .3) : 0;
             // Legs are separate articulated pieces, not just sliding shoes.
-            Joint(145, 388, kick, () => {
+            Joint(145, 388, pose.LeftLeg, () => {
                 Draw("M 134 381 L 160 381 161 408 135 408 Z", 0x403c50, sw: 3);
                 Ellipse(127, 405, 39, 19, 0x373043, sw: 4);
             });
-            Joint(215, 388, -kick, () => {
+            Joint(215, 388, pose.RightLeg, () => {
                 Draw("M 200 381 L 226 381 225 408 199 408 Z", 0x403c50, sw: 3);
                 Ellipse(194, 405, 39, 19, 0x373043, sw: 4);
             });
             Draw(Coat, 0x555368);
             Draw("M 145 253 L 180 298 215 253 M 180 298 L 180 383", -1, 0x918ca8, 4);
-            float arm = held ? (float)(swing * .65 + wave * 12) : walking ? (float)(wave * 16) : (float)(wave * 2);
-            Joint(92, 283, happy ? 26 : arm, () => {
+            Joint(92, 283, pose.LeftArm, () => {
                 Draw(LeftArm, 0x66647c);
                 Ellipse(23, 359, 60, 40, 0xc3bac8, sw: 5);
             });
-            Joint(268, 283, happy ? -30 : -arm, () => {
+            Joint(268, 283, pose.RightArm, () => {
                 Draw(RightArm, 0x66647c);
                 Ellipse(277, 359, 60, 40, 0xc3bac8, sw: 5);
             });
@@ -158,8 +203,7 @@ internal static class DomovoiArt
             // A separate head joint follows the body with a little lag.
             var head = g.Save();
             g.TranslateTransform(180, 255);
-            g.RotateTransform(held ? (float)Math.Clamp(-swing * .18, -14, 14) :
-                sleepy ? -7 : walking ? (float)(wave * 3) : 0);
+            g.RotateTransform(pose.Head);
             g.TranslateTransform(-180, -255);
             Draw(Hair, 0xa6a9bd);
             Draw(Face, 0x23232e);

@@ -1,21 +1,8 @@
-# Interactive Domovoi — character animation revision
+# Domovoi — anchored ragdoll / layered rendering prototype
 
-The mascot lives in the four content pages. It has no network calls or battery polling of its own. The production installer, update manifest and version remain unchanged.
+This revision replaces motion-gesture rotation with physical angular suspension from the selected point of the actual painted body. The existing artwork, autonomous walking, moods, hide/reset and independent physics/walking switches are retained. No linear falling or bouncing.
 
-## Behavior
-
-- Drag the mascot, then release it anywhere. It stays there; no gravity or bouncing across the app.
-- With physics enabled (default), fast mouse movement tilts the character; continuous circular gestures spin it. Angular and limb springs settle after release. The hat, beard and face are preserved from the series model; hands and feet have separate joint motion.
-- A short horizontal walk occurs after around 12 seconds without mascot interaction, then occasionally until sleep. Hovering, clicking or opening the mascot menu pauses the walk. About 48 seconds of no mascot interaction gives a sleepy expression. Double-click for a happy expression; rapid rotation and release can give dizzy eyes; connected low battery gives worried eyes.
-- Right-click to toggle pose physics or autonomous walking independently, hide or reset. Position is saved when released and when a walk ends. Apply saves visibility. Preferences are local.
-- Alpha-derived hit regions follow each pose. Old and new rectangles are invalidated including underlying child controls, to prevent ghost trails. Windows visual confirmation is still required.
-
-## Windows test (not run here)
-
-1. Build with build-windows.cmd on Windows .NET 8, exit the old app and run publish/BatteryMonitor.exe.
-2. Slowly drag over cards, text and buttons; no old copies should remain. Move fast left/right and then in circles; limbs should move and the body should rotate. Release at mid-window; it must stay there and settle upright.
-3. Leave the mouse off the mascot for 12–15 seconds; check short walking cycle, alternating feet and pause on hover. Wait about 48 seconds for sleepy eyes. Double-click, spin and release, and test a connected device reporting <=20%.
-4. Disable physics and walking independently in the right-click menu, verify both settings persist, then enable again. Hide/show in Appearance and Apply. Resize, switch tabs while moving, minimize, restore, test light/dark and different DPI settings.
-5. Verify device refresh, taskbar widget, compatibility and update screens are unchanged. Run test-updates.cmd.
-
-Limitations: 2D articulated artwork, no simulated collision with cards/buttons, no autonomous movement outside the content pages, no charging reaction. Rendering uses shaped WinForms controls, so actual repaint performance and edge quality must be tested on Windows. No binary built here.
+- Each painted limb has a matching local-space transform and hit test. Grab the hat, torso, hand or boot. The center of mass hangs below the grabbed point. The selected point follows the mouse while other joints move. Fast mouse acceleration drives angular and limb motion. After release the character returns upright at its drop location (clamped near edges). At viewport edges the character may be partly clipped while held.
+- Rendering now uses a small layered child HWND with a persistent 32-bit premultiplied-alpha DIB and cached vector paths. No region scan, new bitmap, or synchronous parent redraw per frame. A single 16 ms UI timer samples input, integrates in smaller steps and presents the pose. This targets up to 60 FPS; actual Windows timer/compositor speed varies. The manifest declares Windows 10 compatibility as required for layered child windows. Renderer errors hide the mascot and show an error rather than crash the monitor.
+- Windows testing required: drag by each boot, each hand and top of hat; hold stationary and check the selected pixel stays under the pointer, and feet hang above the head. Move cursor rapidly and in circles; body should swing naturally. Release at center and edges; verify no trails, clipped sprite stays in bounds after release, background controls work through transparent areas, animation does not cover the desktop. Test at 100/150% DPI and light/dark themes. Check CPU, responsiveness, hide/show, tab switching and restart, walking and moods. Test normal battery updates and taskbar widget. Run test-updates.cmd.
+- This is a 2D articulated body with one central angular mass and animated joints, not a full multi-body ragdoll solver. No collisions with cards or buttons. Windows build and UI test have not been run here.
