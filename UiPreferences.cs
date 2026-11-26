@@ -50,6 +50,7 @@ internal sealed record UiPreferences(string Language, string Theme)
         ["Интерактивный домовой"] = ("Інтерактивний домовик", "Interactive Domovoi"),
         ["Показывать домового в окне программы"] = ("Показувати домовика у вікні програми", "Show Domovoi in the app window"),
         ["Перетаскивайте домового мышью. Правый клик — скрыть или вернуть на место."] = ("Перетягуйте домовика мишею. Правий клік — приховати або повернути на місце.", "Drag Domovoi with your mouse. Right-click to hide or reset his position."),
+        ["Физика домового"] = ("Фізика домовика", "Domovoi physics"),
         ["Скрыть домового"] = ("Приховати домовика", "Hide Domovoi"),
         ["Вернуть на место"] = ("Повернути на місце", "Reset position"),
         ["Совместимость"] = ("Сумісність", "Compatibility"),

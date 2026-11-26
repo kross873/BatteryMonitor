@@ -25,6 +25,26 @@ internal static class DomovoiPreferences
         key.SetValue("Enabled", enabled ? 1 : 0, RegistryValueKind.DWord);
     }
 
+    internal static bool LoadPhysics()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(Key);
+            return key?.GetValue("Physics") is not int value || value != 0;
+        }
+        catch { return true; }
+    }
+
+    internal static void SavePhysics(bool enabled)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(Key);
+            key?.SetValue("Physics", enabled ? 1 : 0, RegistryValueKind.DWord);
+        }
+        catch { }
+    }
+
     internal static (int X, int Y) LoadPosition()
     {
         try
